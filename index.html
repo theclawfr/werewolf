@@ -82,8 +82,9 @@ a{color:var(--olive-dark);}
   width:100%; border:1.5px solid var(--ink); background:var(--paper); padding:8px 10px; border-radius:var(--radius);
 }
 .field textarea{resize:vertical; min-height:64px;}
-.row{display:flex; gap:12px;}
+.row{display:flex; gap:12px; flex-wrap:wrap;}
 .row > *{flex:1;}
+.row input, .row select{min-width:140px;}
 .btn{
   border:2px solid var(--ink); background:var(--ink); color:var(--paper); padding:9px 18px;
   border-radius:var(--radius); font-weight:600; font-size:13.5px; letter-spacing:.02em;
@@ -97,6 +98,11 @@ a{color:var(--olive-dark);}
 .codebox{
   font-family:'Oswald',sans-serif; font-size:28px; letter-spacing:.12em; text-align:center;
   border:2px dashed var(--ink); padding:14px; margin:14px 0; background:var(--paper);
+}
+.codefield{display:inline-flex; align-items:center; gap:6px;}
+.codefield input{
+  font-family:'Oswald',sans-serif; letter-spacing:.08em; font-size:14px; border:1.5px solid var(--ink);
+  background:var(--paper); padding:6px 8px; border-radius:var(--radius); width:150px; text-align:center;
 }
 
 /* ---- Layout: sidebar + main ---- */
@@ -203,6 +209,7 @@ table.reftable tr:hover td{background:rgba(255,255,255,.4);}
 <div id="app"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
 
@@ -230,6 +237,7 @@ const firebaseConfig = {
   appId: "1:732364730167:web:2a1b0c31765f49ec9f74b2"
 };
 let fbReady = false;
+let authReady = false;
 let db = null;
 try {
   if (window.firebase && firebaseConfig.apiKey !== "COLLE_TA_CLE_API") {
@@ -243,47 +251,42 @@ const CHAR_COL = "ww_personnages";
 const TABLE_COL = "ww_tables";
 
 /* ============ Helpers ============ */
+const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no 0/O, 1/I/L — moins de confusions
 function genCode(len=6){
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let s = "";
-  for (let i=0;i<len;i++) s += chars[Math.floor(Math.random()*chars.length)];
+  for (let i=0;i<len;i++) s += CODE_ALPHABET[Math.floor(Math.random()*CODE_ALPHABET.length)];
   return s;
 }
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
 function debounce(fn, wait){
   let t = null;
   return (...args) => { clearTimeout(t); t = setTimeout(()=>fn(...args), wait); };
 }
-function el(html){
-  const t = document.createElement('template');
-  t.innerHTML = html.trim();
-  return t.content.firstElementChild;
-}
 function escapeHtml(s){
   return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+function cleanForFirestore(obj){ return JSON.parse(JSON.stringify(obj)); }
 
 /* ============ Character factory ============ */
 function newCharacter(){
   const attrs = {}; Object.values(ATTRIBUTS).flat().forEach(a => attrs[a] = 1);
   const skills = {}; Object.values(COMPETENCES).flat().forEach(s => skills[s] = 0);
   return {
+    id: uid(), createdAt: Date.now(), ownerId: '', table: '', tableId: '', joinCode: genCode(12),
     nom: "", concept: "", chronique: "", auspice: "", tribu: "", espritTutelaire: "",
     attributs: attrs,
     competences: skills,
-    specialites: [], // {competence, texte}
-    santeDegats: [], // array of 0/1/2 per box, length derived dynamically but we store actual clicks up to current max
-    volonteDegats: [],
-    crinosDegats: [],
+    specialites: [],
+    santeDegats: [], volonteDegats: [], crinosDegats: [],
     rage: 0,
     renom: { Gloire: 0, Honneur: 0, Sagesse: 0 },
-    avantages: [], // {nom, valeur, note, type}
-    dons: [], // {nom, categorie, renomTotal, cout, action, groupement, duree, effet}
-    rites: [], // {nom, groupement, effet}
+    avantages: [],
+    dons: [],
+    rites: [],
     apparence: "", histoire: "",
     xpTotal: 0, xpDepensee: 0,
     notes: "",
-    updatedAt: null,
   };
 }
 
@@ -298,31 +301,66 @@ function ensureTrackLength(arr, len){
 
 /* ============ Global state ============ */
 const state = {
-  role: null,        // 'joueur' | 'mj'
-  view: 'landing',   // 'landing' | 'sheet' | 'table'
-  landingPanel: null, // 'joueur' | 'mj' | null
+  role: (function(){ try { return localStorage.getItem('ww_role') || null; } catch(e){ return null; } })(),
+  viewerId: (function(){
+    try {
+      let id = localStorage.getItem('ww_viewerId');
+      if (!id) { id = genCode(6); localStorage.setItem('ww_viewerId', id); }
+      return id;
+    } catch(e){ return genCode(6); }
+  })(),
+  view: 'loading',   // 'loading' | 'landing' | 'roster' | 'sheet'
   section: 'identite',
-  myCode: null,
-  character: null,
-  tableCode: null,
-  tableMembers: {},  // code -> character data (cached)
+  activeCharId: null,
+  character: null,   // working copy of the open character
+  allCharacters: [],
+  allTables: [],
+  tableFilter: 'Toutes',
+  showAccount: false,
   loadError: '',
   saving: false,
-  unsubChar: null,
-  unsubTable: null,
+  unsubActiveChar: null,
   giftFilter: { cat: 'Tous', q: '' },
   riteFilter: { q: '' },
 };
 
+/* ============ Auth + live data ============ */
+function boot(){
+  if (!fbReady){ state.view = 'landing'; renderApp(); return; }
+  firebase.auth().onAuthStateChanged(user => {
+    if (!user) return;
+    authReady = true;
+    subscribeAll();
+  });
+  firebase.auth().signInAnonymously().catch(e => {
+    console.error(e);
+    state.loadError = "Connexion à Firebase impossible (authentification anonyme). Vérifie qu'elle est activée dans la console.";
+    state.view = 'landing';
+    renderApp();
+  });
+}
+
+function subscribeAll(){
+  let gotChars = false, gotTables = false;
+  const maybeReady = () => { if (gotChars && gotTables && state.view === 'loading') { state.view = state.role ? 'roster' : 'landing'; renderApp(); } };
+  db.collection(CHAR_COL).onSnapshot(snap => {
+    state.allCharacters = snap.docs.map(d => d.data()).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+    gotChars = true; maybeReady();
+    if (state.view !== 'sheet') renderApp();
+  }, err => { console.error(err); gotChars = true; maybeReady(); });
+  db.collection(TABLE_COL).onSnapshot(snap => {
+    state.allTables = snap.docs.map(d => d.data());
+    gotTables = true; maybeReady();
+    if (state.view !== 'sheet') renderApp();
+  }, err => { console.error(err); gotTables = true; maybeReady(); });
+}
+
 /* ============ Persistence ============ */
 const saveCharacterDebounced = debounce(async function(){
-  if (!fbReady || !state.myCode || !state.character) { renderSaveBadge('local'); return; }
+  if (!fbReady || !authReady || !state.character) { renderSaveBadge('local'); return; }
   state.saving = true; renderSaveBadge('saving');
   try {
-    await db.collection(CHAR_COL).doc(state.myCode).set({
-      data: state.character,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
+    await db.collection(CHAR_COL).doc(state.character.id).set(cleanForFirestore(state.character));
     state.saving = false; renderSaveBadge('ok');
   } catch(e){
     console.error(e); state.saving = false; renderSaveBadge('err');
@@ -339,120 +377,112 @@ function renderSaveBadge(status){
   else if (status === 'err'){ b.textContent = 'Erreur de sauvegarde'; }
 }
 
-function listenToCharacter(code){
-  if (state.unsubChar) state.unsubChar();
+function listenToActiveCharacter(id){
+  if (state.unsubActiveChar) state.unsubActiveChar();
   if (!fbReady) return;
-  state.unsubChar = db.collection(CHAR_COL).doc(code).onSnapshot(doc => {
-    if (!doc.exists) return;
-    const snap = doc.data();
-    if (doc.metadata.hasPendingWrites) return; // our own echo
-    state.character = Object.assign(newCharacter(), snap.data);
+  state.unsubActiveChar = db.collection(CHAR_COL).doc(id).onSnapshot(doc => {
+    if (!doc.exists || doc.metadata.hasPendingWrites) return;
+    state.character = Object.assign(newCharacter(), doc.data());
     renderApp();
   });
 }
 
 async function createCharacter(){
-  state.myCode = genCode();
-  state.character = newCharacter();
-  state.role = 'joueur';
+  const c = newCharacter();
+  c.ownerId = state.viewerId;
+  state.character = c;
+  state.activeCharId = c.id;
   state.view = 'sheet';
   state.section = 'identite';
   renderApp();
-  if (fbReady){
-    try {
-      await db.collection(CHAR_COL).doc(state.myCode).set({ data: state.character, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
-      listenToCharacter(state.myCode);
-    } catch(e){ console.error(e); }
+  if (fbReady && authReady){
+    try { await db.collection(CHAR_COL).doc(c.id).set(cleanForFirestore(c)); listenToActiveCharacter(c.id); }
+    catch(e){ console.error(e); }
   }
 }
 
-async function loadCharacterByCode(code){
-  code = code.trim().toUpperCase();
-  if (!code) return;
-  state.loadError = '';
-  if (!fbReady){
-    state.loadError = "Firebase n'est pas configuré dans ce fichier — impossible de charger un code existant.";
-    renderApp(); return;
-  }
-  try {
-    const doc = await db.collection(CHAR_COL).doc(code).get();
-    if (!doc.exists){ state.loadError = "Aucun personnage trouvé avec ce code."; renderApp(); return; }
-    state.myCode = code;
-    state.character = Object.assign(newCharacter(), doc.data().data);
-    state.role = 'joueur';
-    state.view = 'sheet';
-    state.section = 'identite';
-    listenToCharacter(code);
-    renderApp();
-  } catch(e){ console.error(e); state.loadError = "Erreur de connexion à Firebase."; renderApp(); }
-}
-
-/* ---- Table (MJ) ---- */
-async function openTable(code){
-  code = code.trim().toUpperCase();
-  if (!code) return;
-  state.loadError = '';
-  if (!fbReady){ state.loadError = "Firebase n'est pas configuré dans ce fichier."; renderApp(); return; }
-  state.tableCode = code;
-  state.role = 'mj';
-  state.view = 'table';
-  try {
-    const doc = await db.collection(TABLE_COL).doc(code).get();
-    if (!doc.exists){
-      await db.collection(TABLE_COL).doc(code).set({ memberCodes: [], updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
-    }
-    listenToTable(code);
-  } catch(e){ console.error(e); state.loadError = "Erreur de connexion à Firebase."; }
+function openCharacter(id){
+  const found = state.allCharacters.find(c => c.id === id);
+  state.character = Object.assign(newCharacter(), found || {});
+  state.activeCharId = id;
+  state.view = 'sheet';
+  state.section = 'identite';
+  listenToActiveCharacter(id);
   renderApp();
 }
 
-function listenToTable(code){
-  if (state.unsubTable) state.unsubTable();
-  state.unsubTable = db.collection(TABLE_COL).doc(code).onSnapshot(doc => {
-    if (!doc.exists) return;
-    const members = doc.data().memberCodes || [];
-    members.forEach(mc => {
-      db.collection(CHAR_COL).doc(mc).onSnapshot(cdoc => {
-        if (cdoc.exists) state.tableMembers[mc] = cdoc.data().data;
-        else state.tableMembers[mc] = null;
-        renderApp();
-      });
-    });
-    Object.keys(state.tableMembers).forEach(mc => { if (!members.includes(mc)) delete state.tableMembers[mc]; });
-    renderApp();
-  });
+function openCharacterByJoinCode(code){
+  const clean = code.trim().toUpperCase();
+  const found = state.allCharacters.find(c => (c.joinCode||'').toUpperCase() === clean);
+  if (!found) return { ok:false };
+  openCharacter(found.id);
+  return { ok:true };
 }
 
-async function addMemberToTable(code){
-  code = code.trim().toUpperCase();
-  if (!code || !fbReady) return;
-  await db.collection(TABLE_COL).doc(state.tableCode).update({
-    memberCodes: firebase.firestore.FieldValue.arrayUnion(code)
-  });
-}
-async function removeMemberFromTable(code){
+async function deleteCharacter(id){
   if (!fbReady) return;
-  await db.collection(TABLE_COL).doc(state.tableCode).update({
-    memberCodes: firebase.firestore.FieldValue.arrayRemove(code)
-  });
+  try { await db.collection(CHAR_COL).doc(id).delete(); } catch(e){ console.error(e); }
 }
 
-function openMemberSheet(code){
-  state.myCode = code;
-  state.character = state.tableMembers[code] ? Object.assign(newCharacter(), state.tableMembers[code]) : newCharacter();
-  state.view = 'sheet';
-  state.section = 'identite';
-  state.fromTable = true;
-  listenToCharacter(code);
+function backToRoster(){
+  if (state.unsubActiveChar) state.unsubActiveChar();
+  state.unsubActiveChar = null;
+  state.character = null;
+  state.activeCharId = null;
+  state.view = 'roster';
+  renderApp();
+}
+
+/* ---- Comptes & tables ---- */
+function reclaimAccount(code){
+  const clean = code.trim().toUpperCase();
+  if (!clean) return false;
+  state.viewerId = clean;
+  try { localStorage.setItem('ww_viewerId', clean); } catch(e){}
+  return true;
+}
+
+async function createTable(name){
+  name = name.trim();
+  if (!name || !fbReady) return;
+  const t = { id: uid(), name, code: genCode(12), dmViewerId: state.viewerId, createdAt: Date.now() };
+  try { await db.collection(TABLE_COL).doc(t.id).set(cleanForFirestore(t)); } catch(e){ console.error(e); }
+}
+
+async function deleteTable(tableId){
+  if (!fbReady) return;
+  try { await db.collection(TABLE_COL).doc(tableId).delete(); } catch(e){ console.error(e); }
+  const orphaned = state.allCharacters.filter(c => c.tableId === tableId);
+  for (const c of orphaned){
+    try { await db.collection(CHAR_COL).doc(c.id).update({ table: '', tableId: '' }); } catch(e){ console.error(e); }
+  }
+}
+
+async function redeemTableCode(code){
+  const clean = code.trim().toUpperCase();
+  const found = state.allTables.find(t => (t.code||'').toUpperCase() === clean);
+  if (!found || !state.character) return { ok:false };
+  state.character.table = found.name;
+  state.character.tableId = found.id;
+  if (fbReady) { try { await db.collection(CHAR_COL).doc(state.character.id).update({ table: found.name, tableId: found.id }); } catch(e){ console.error(e); } }
+  renderApp();
+  return { ok:true, name: found.name };
+}
+
+async function leaveTable(){
+  if (!state.character) return;
+  state.character.table = ''; state.character.tableId = '';
+  if (fbReady) { try { await db.collection(CHAR_COL).doc(state.character.id).update({ table:'', tableId:'' }); } catch(e){ console.error(e); } }
   renderApp();
 }
 
 /* ============ Rendering ============ */
 function renderApp(){
   const root = document.getElementById('app');
-  if (state.view === 'landing') root.innerHTML = renderLanding();
+  if (state.view === 'loading') root.innerHTML = `<div class="landing"><p class="sub" style="text-align:center;">Connexion…</p></div>`;
+  else if (state.view === 'landing') root.innerHTML = renderLanding();
+  else if (state.view === 'roster') root.innerHTML = renderRoster();
   else if (state.view === 'sheet') root.innerHTML = renderSheetView();
-  else if (state.view === 'table') root.innerHTML = renderTableView();
   attachHandlers();
 }
 
@@ -464,45 +494,132 @@ function renderLanding(){
     <div class="rolecards">
       <button class="rolecard" data-action="pick-joueur">
         <h3>Je suis joueur</h3>
-        <p>Créer un nouveau personnage ou reprendre le tien avec ton code.</p>
+        <p>Voir tes personnages, en créer un nouveau, ou reprendre ton compte sur cet appareil.</p>
       </button>
       <button class="rolecard" data-action="pick-mj">
         <h3>Je suis meneur</h3>
-        <p>Ouvrir le tableau de ta table pour suivre les personnages de tes joueurs.</p>
+        <p>Gérer tes tables et suivre les personnages qui les ont rejointes.</p>
       </button>
     </div>
-    <div id="landing-panel">${state.landingPanel==='joueur' ? renderLandingPanelJoueur() : state.landingPanel==='mj' ? renderLandingPanelMJ() : ''}</div>
+    ${state.loadError ? `<div class="err" style="text-align:center; margin-top:14px;">${escapeHtml(state.loadError)}</div>` : ''}
   </div>`;
 }
 
-function renderLandingPanelJoueur(){
+/** Un champ code en lecture seule avec bouton copier robuste (clipboard → execCommand → sélection manuelle). */
+function codeFieldHtml(code, id){
   return `
-  <div class="landing-panel">
-    <h3>Joueur</h3>
-    <button class="btn" data-action="new-character" style="margin-bottom:16px;">+ Nouveau personnage</button>
-    <div class="field">
-      <label>Reprendre avec un code</label>
-      <div class="row">
-        <input type="text" id="load-code-input" placeholder="ex. 7K2Q9X" maxlength="8" style="text-transform:uppercase;">
-        <button class="btn secondary" data-action="load-character" style="flex:0 0 auto;">Charger</button>
+  <span class="codefield">
+    <input type="text" readonly value="${escapeHtml(code)}" id="${id}" onclick="this.select()" onfocus="this.select()">
+    <button class="btn small secondary" data-action="copy-code" data-target="${id}">Copier</button>
+  </span>`;
+}
+
+function renderAccountPanel(){
+  return `
+  <div class="card" style="margin-bottom:18px;">
+    <h4>Mon compte sur cet appareil</h4>
+    <p class="helptext" style="margin-top:0;">Ce code te "possède" sur cet appareil : tous les personnages que tu crées lui sont liés. Retape-le sur un autre navigateur/appareil pour retrouver les tiens.</p>
+    <div class="row" style="align-items:center;">
+      <div class="field" style="margin-bottom:0;"><label>Ton code de compte</label>${codeFieldHtml(state.viewerId, 'account-code-field')}</div>
+      <div class="field" style="margin-bottom:0;">
+        <label>Reprendre un autre compte</label>
+        <div class="row">
+          <input type="text" id="reclaim-input" placeholder="Coller un code de compte" style="text-transform:uppercase;">
+          <button class="btn small secondary" data-action="reclaim-account" style="flex:0 0 auto;">Valider</button>
+        </div>
       </div>
     </div>
-    ${state.loadError ? `<div class="err">${escapeHtml(state.loadError)}</div>` : ''}
+    <div id="reclaim-msg"></div>
+    <div class="field" style="margin-top:12px; margin-bottom:0;">
+      <label>Ouvrir un personnage précis avec son propre code</label>
+      <div class="row">
+        <input type="text" id="open-by-joincode" placeholder="Code du personnage (donné par son joueur)" style="text-transform:uppercase;">
+        <button class="btn small secondary" data-action="open-by-joincode" style="flex:0 0 auto;">Ouvrir</button>
+      </div>
+      <div id="open-by-joincode-msg"></div>
+    </div>
   </div>`;
 }
-function renderLandingPanelMJ(){
+
+function renderRoster(){
+  const isDm = state.role === 'mj';
+  const myCharacters = state.allCharacters.filter(c => c.ownerId === state.viewerId);
+  const myTables = state.allTables.filter(t => t.dmViewerId === state.viewerId);
+  const myTableIds = new Set(myTables.map(t=>t.id));
+  const dmCharacters = state.allCharacters.filter(c => c.tableId && myTableIds.has(c.tableId));
+
   return `
-  <div class="landing-panel">
-    <h3>Meneur de jeu</h3>
-    <div class="field">
-      <label>Code de table (existant ou nouveau)</label>
-      <div class="row">
-        <input type="text" id="table-code-input" placeholder="ex. TABLE1" maxlength="10" style="text-transform:uppercase;">
-        <button class="btn secondary" data-action="open-table" style="flex:0 0 auto;">Ouvrir</button>
-      </div>
+  <div class="topbar">
+    <div class="wordmark"><span class="w1">Werewolf</span><span class="w2">L'Apocalypse — Ledger</span></div>
+    <div class="topbar-right">
+      <span class="pill">${isDm?'MJ':'Joueur'}</span>
+      <button class="linkbtn" data-action="switch-role">Changer de vue</button>
     </div>
-    ${state.loadError ? `<div class="err">${escapeHtml(state.loadError)}</div>` : ''}
+  </div>
+  <div class="main" style="max-width:1100px; margin:0 auto;">
+    ${renderAccountPanel()}
+    ${isDm ? renderDmRoster(myTables, dmCharacters) : renderPlayerRoster(myCharacters)}
   </div>`;
+}
+
+function charCardHtml(c, opts={}){
+  const sMax = santeMax(c), wMax = volonteMax(c);
+  const sDmg = (c.santeDegats||[]).filter(v=>v>0).length;
+  const wDmg = (c.volonteDegats||[]).filter(v=>v>0).length;
+  return `
+  <div class="charcard">
+    <button data-action="open-character" data-id="${c.id}" style="all:unset; cursor:pointer; display:block; width:100%;">
+      <h4>${escapeHtml(c.nom||'(sans nom)')}</h4>
+      <div class="sub">${escapeHtml(c.auspice||'?')} · ${escapeHtml(c.tribu||'?')} ${c.table?(' · '+escapeHtml(c.table)):''}</div>
+      <div class="miniGauges">
+        <span>Santé ${sMax-sDmg}/${sMax}</span>
+        <span>Volonté ${wMax-wDmg}/${wMax}</span>
+        <span>Rage ${c.rage||0}/5</span>
+      </div>
+    </button>
+    ${opts.canDelete ? `<button class="iconbtn remove" style="position:absolute; top:10px; right:10px;" data-action="delete-character" data-id="${c.id}">&times;</button>` : ''}
+  </div>`;
+}
+
+function renderPlayerRoster(myCharacters){
+  return `
+  ${sectionHead('Mes personnages', myCharacters.length+' perso(s)')}
+  <div class="tablegrid">
+    ${myCharacters.map(c => `<div style="position:relative;">${charCardHtml(c, {canDelete:true})}</div>`).join('')}
+    <button class="charcard" data-action="new-character" style="display:flex; flex-direction:column; align-items:center; justify-content:center; border-style:dashed; cursor:pointer;">
+      <span style="font-size:28px; line-height:1;">+</span>
+      <span class="sub">Nouveau personnage</span>
+    </button>
+  </div>
+  ${myCharacters.length===0 ? '<p class="helptext">Tu n\'as pas encore de personnage — crée le premier ci-dessus.</p>' : ''}`;
+}
+
+function renderDmRoster(myTables, dmCharacters){
+  return `
+  ${sectionHead('Mes tables')}
+  <div class="card">
+    <div class="row">
+      <input type="text" id="new-table-name" placeholder="Nom de la table/meute">
+      <button class="btn small" data-action="create-table" style="flex:0 0 auto;">Créer</button>
+    </div>
+    ${myTables.length===0 ? '<p class="helptext">Aucune table pour l\'instant. Crée-en une, puis partage son code aux joueurs.</p>' : ''}
+    <div class="itemlist" style="margin-top:12px;">
+      ${myTables.map(t => `
+        <div class="item">
+          <div class="item-top">
+            <span class="item-name">${escapeHtml(t.name)}</span>
+            <button class="iconbtn remove" data-action="delete-table" data-id="${t.id}">&times;</button>
+          </div>
+          <div class="item-meta">Code à donner aux joueurs :</div>
+          ${codeFieldHtml(t.code, 'table-code-'+t.id)}
+        </div>`).join('')}
+    </div>
+  </div>
+  ${sectionHead('Personnages de mes tables', dmCharacters.length+' perso(s)')}
+  <div class="tablegrid">
+    ${dmCharacters.map(c => charCardHtml(c)).join('')}
+  </div>
+  ${dmCharacters.length===0 ? '<p class="helptext">Personne n\'a encore rejoint tes tables — partage un code de table ci-dessus.</p>' : ''}`;
 }
 
 function renderTopbar(){
@@ -511,14 +628,13 @@ function renderTopbar(){
   <div class="topbar">
     <div class="wordmark"><span class="w1">Werewolf</span><span class="w2">L'Apocalypse — Ledger</span></div>
     <div class="topbar-right">
-      ${state.fromTable ? `<button class="linkbtn" data-action="back-to-table">← Retour au tableau</button>` : ''}
+      <button class="linkbtn" data-action="back-to-roster">← Mes personnages</button>
       <span class="pill">${roleLabel}</span>
-      ${state.myCode ? `<span class="pill" title="Partage ce code pour retrouver ce personnage">Code : ${state.myCode}</span>` : ''}
       <span class="savebadge" id="savebadge">${fbReady ? '' : 'Local (Firebase non configuré)'}</span>
-      <button class="linkbtn" data-action="go-home">Accueil</button>
     </div>
   </div>`;
 }
+
 
 const SECTIONS = [
   ['identite','Identité'], ['attributs','Attributs'], ['competences','Compétences'],
@@ -530,6 +646,10 @@ function renderSheetView(){
   const c = state.character;
   return `
   ${renderTopbar()}
+  <div class="card" style="margin:14px 20px 0; padding:10px 16px;">
+    <span class="sub" style="margin-right:8px;">Code de ce personnage (à donner pour un accès direct) :</span>
+    ${codeFieldHtml(c.joinCode||'', 'char-code-field')}
+  </div>
   <div class="layout">
     <div class="sidebar">
       ${SECTIONS.map(([k,label]) => `<button class="navbtn ${state.section===k?'active':''}" data-action="nav" data-section="${k}">${label}</button>`).join('')}
@@ -585,6 +705,13 @@ function renderIdentite(c){
         </select>
       </div>
     </div>
+  </div>
+  <div class="card">
+    <h4>Table</h4>
+    ${c.table
+      ? `<p style="margin:0 0 8px;">Rattaché à la table <strong>${escapeHtml(c.table)}</strong>.</p><button class="btn small secondary" data-action="leave-table">Quitter cette table</button>`
+      : `<div class="row"><input type="text" id="join-table-code" placeholder="Code de table donné par ton MJ" style="text-transform:uppercase;"><button class="btn small" data-action="join-table" style="flex:0 0 auto;">Rejoindre</button></div>`}
+    <div id="join-table-msg"></div>
   </div>
   ${sectionHead('Apparence & Histoire')}
   <div class="card notegrid">
@@ -858,42 +985,6 @@ function renderNotes(c){
   </div>`;
 }
 
-/* ---- Table (MJ) view ---- */
-function renderTableView(){
-  const codes = Object.keys(state.tableMembers);
-  return `
-  ${renderTopbar()}
-  <div class="main" style="padding:22px 26px;">
-    ${sectionHead('Table', state.tableCode)}
-    <div class="card">
-      <div class="row">
-        <input type="text" id="add-member-code" placeholder="Code du personnage à ajouter" style="text-transform:uppercase;">
-        <button class="btn small" data-action="add-member" style="flex:0 0 auto;">Ajouter à la table</button>
-      </div>
-    </div>
-    <div class="tablegrid">
-      ${codes.length===0 ? '<div class="empty">Aucun personnage sur cette table pour l\'instant.</div>' : ''}
-      ${codes.map(code => {
-        const m = state.tableMembers[code];
-        if (!m) return `<div class="charcard"><h4>${code}</h4><div class="sub">Personnage introuvable</div>
-          <button class="iconbtn remove" data-action="remove-member" data-code="${code}">&times;</button></div>`;
-        const sMax = santeMax(m), wMax = volonteMax(m);
-        const sDmg = (m.santeDegats||[]).filter(v=>v>0).length;
-        const wDmg = (m.volonteDegats||[]).filter(v=>v>0).length;
-        return `<div class="charcard" data-action="open-member" data-code="${code}">
-          <h4>${escapeHtml(m.nom||'(sans nom)')}</h4>
-          <div class="sub">${escapeHtml(m.auspice||'?')} · ${escapeHtml(m.tribu||'?')} — ${code}</div>
-          <div class="miniGauges">
-            <span>Santé ${sMax-sDmg}/${sMax}</span>
-            <span>Volonté ${wMax-wDmg}/${wMax}</span>
-            <span>Rage ${m.rage||0}/5</span>
-          </div>
-        </div>`;
-      }).join('')}
-    </div>
-  </div>`;
-}
-
 /* ============ Event handling ============ */
 function updateCharField(path, value){
   const c = state.character;
@@ -904,46 +995,76 @@ function updateCharField(path, value){
   saveCharacterDebounced();
 }
 
-function attachLandingPanelHandlers(){
-  const panel = document.getElementById('landing-panel');
-  if (!panel) return;
-  panel.querySelectorAll('[data-action="new-character"]').forEach(b=>b.onclick=createCharacter);
-  panel.querySelectorAll('[data-action="load-character"]').forEach(b=>b.onclick=()=>{
-    loadCharacterByCode(document.getElementById('load-code-input').value);
-  });
-  panel.querySelectorAll('[data-action="open-table"]').forEach(b=>b.onclick=()=>{
-    openTable(document.getElementById('table-code-input').value);
-  });
-  const loadInp = document.getElementById('load-code-input');
-  if (loadInp) loadInp.addEventListener('keydown', e => { if (e.key==='Enter') loadCharacterByCode(loadInp.value); });
-  const tableInp = document.getElementById('table-code-input');
-  if (tableInp) tableInp.addEventListener('keydown', e => { if (e.key==='Enter') openTable(tableInp.value); });
-}
-
 function attachHandlers(){
-  attachLandingPanelHandlers();
   const root = document.getElementById('app');
+  if (!root) return;
 
   // Landing role pick
   root.querySelectorAll('[data-action="pick-joueur"]').forEach(b=>b.onclick=()=>{
-    state.landingPanel = 'joueur'; state.loadError='';
+    state.role = 'joueur'; try{localStorage.setItem('ww_role','joueur');}catch(e){}
+    state.view = 'roster'; state.loadError='';
     renderApp();
   });
   root.querySelectorAll('[data-action="pick-mj"]').forEach(b=>b.onclick=()=>{
-    state.landingPanel = 'mj'; state.loadError='';
+    state.role = 'mj'; try{localStorage.setItem('ww_role','mj');}catch(e){}
+    state.view = 'roster'; state.loadError='';
     renderApp();
   });
-  root.querySelectorAll('[data-action="go-home"]').forEach(b=>b.onclick=()=>{
-    if (state.unsubChar) state.unsubChar();
-    if (state.unsubTable) state.unsubTable();
-    Object.assign(state, { role:null, view:'landing', myCode:null, character:null, tableCode:null, tableMembers:{}, fromTable:false, landingPanel:null, loadError:'' });
+  root.querySelectorAll('[data-action="switch-role"]').forEach(b=>b.onclick=()=>{
+    state.role = null; try{localStorage.removeItem('ww_role');}catch(e){}
+    state.view = 'landing';
     renderApp();
   });
-  root.querySelectorAll('[data-action="back-to-table"]').forEach(b=>b.onclick=()=>{
-    if (state.unsubChar) state.unsubChar();
-    state.view = 'table'; state.fromTable = false;
-    renderApp();
+  root.querySelectorAll('[data-action="back-to-roster"]').forEach(b=>b.onclick=backToRoster);
+
+  // Compte : copier un code, en reprendre un autre
+  root.querySelectorAll('[data-action="copy-code"]').forEach(b=>b.onclick=()=>{
+    const inp = document.getElementById(b.dataset.target);
+    if (!inp) return;
+    inp.focus(); inp.select();
+    let ok = false;
+    if (navigator.clipboard) { navigator.clipboard.writeText(inp.value).then(()=>{}).catch(()=>{}); ok = true; }
+    try { if (!ok) ok = document.execCommand && document.execCommand('copy'); } catch(e){}
+    const old = b.textContent; b.textContent = ok ? 'Copié !' : 'Sélectionné'; setTimeout(()=>{ b.textContent = old; }, 1500);
   });
+  root.querySelectorAll('[data-action="reclaim-account"]').forEach(b=>b.onclick=()=>{
+    const inp = document.getElementById('reclaim-input');
+    const msg = document.getElementById('reclaim-msg');
+    if (reclaimAccount(inp.value)) { renderApp(); }
+  });
+  root.querySelectorAll('[data-action="open-by-joincode"]').forEach(b=>b.onclick=()=>{
+    const inp = document.getElementById('open-by-joincode');
+    const msg = document.getElementById('open-by-joincode-msg');
+    const res = openCharacterByJoinCode(inp.value);
+    if (!res.ok && msg) msg.innerHTML = `<div class="err">Aucun personnage avec ce code.</div>`;
+  });
+
+  // Roster joueur
+  root.querySelectorAll('[data-action="new-character"]').forEach(b=>b.onclick=createCharacter);
+  root.querySelectorAll('[data-action="open-character"]').forEach(b=>b.onclick=()=>{ openCharacter(b.dataset.id); });
+  root.querySelectorAll('[data-action="delete-character"]').forEach(b=>b.onclick=(e)=>{
+    e.stopPropagation();
+    if (confirm('Supprimer définitivement ce personnage ?')) deleteCharacter(b.dataset.id);
+  });
+
+  // Roster MJ : tables
+  root.querySelectorAll('[data-action="create-table"]').forEach(b=>b.onclick=()=>{
+    const inp = document.getElementById('new-table-name');
+    if (inp.value.trim()) createTable(inp.value);
+    inp.value = '';
+  });
+  root.querySelectorAll('[data-action="delete-table"]').forEach(b=>b.onclick=()=>{
+    if (confirm('Supprimer cette table ? Les personnages liés seront juste détachés, pas supprimés.')) deleteTable(b.dataset.id);
+  });
+
+  // Sheet : rejoindre/quitter une table
+  root.querySelectorAll('[data-action="join-table"]').forEach(b=>b.onclick=async ()=>{
+    const inp = document.getElementById('join-table-code');
+    const msg = document.getElementById('join-table-msg');
+    const res = await redeemTableCode(inp.value);
+    if (msg) msg.innerHTML = res.ok ? `<p class="helptext">Rejoint : ${escapeHtml(res.name)}</p>` : `<div class="err">Aucune table avec ce code.</div>`;
+  });
+  root.querySelectorAll('[data-action="leave-table"]').forEach(b=>b.onclick=leaveTable);
 
   // Sidebar nav
   root.querySelectorAll('[data-action="nav"]').forEach(b=>b.onclick=()=>{
@@ -1028,19 +1149,6 @@ function attachHandlers(){
   const riteSearch = document.getElementById('rite-search');
   if (riteSearch) riteSearch.oninput = () => { state.riteFilter.q = riteSearch.value; document.getElementById('rite-rows').innerHTML = renderRitesCatalogRows(); attachCatalogRowHandlers(); };
   attachCatalogRowHandlers();
-
-  // Table view
-  root.querySelectorAll('[data-action="add-member"]').forEach(b=>b.onclick=()=>{
-    const inp = document.getElementById('add-member-code');
-    if (inp.value.trim()) addMemberToTable(inp.value);
-    inp.value='';
-  });
-  root.querySelectorAll('[data-action="remove-member"]').forEach(b=>b.onclick=(e)=>{
-    e.stopPropagation(); removeMemberFromTable(b.dataset.code);
-  });
-  root.querySelectorAll('[data-action="open-member"]').forEach(b=>b.onclick=()=>{
-    openMemberSheet(b.dataset.code);
-  });
 }
 
 function attachCatalogRowHandlers(){
@@ -1063,7 +1171,7 @@ document.addEventListener('click', function(e){
   if (t2){ state.character.rites.splice(Number(t2.dataset.idx),1); saveCharacterDebounced(); renderApp(); }
 });
 
-renderApp();
+boot();
 
 </script>
 </body>
