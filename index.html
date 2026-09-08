@@ -144,6 +144,7 @@ a{color:var(--olive-dark);}
   font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; padding:0; line-height:1;
   color:var(--blood); font-family:'Oswald',sans-serif;
 }
+.box.tracksquare.on{ background:var(--blood); border-color:var(--blood); }
 .gaugeblock{display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:6px;}
 .gaugelabel{width:130px; font-family:'Oswald',sans-serif; font-weight:600; font-size:14px;}
 .gaugemax{font-size:11.5px; color:var(--ink-soft);}
@@ -280,6 +281,7 @@ function newCharacter(){
     specialites: [],
     santeDegats: [], volonteDegats: [], crinosDegats: [],
     rage: 0,
+    harano: 0, hauglosk: 0,
     renom: { Gloire: 0, Honneur: 0, Sagesse: 0 },
     avantages: [],
     dons: [],
@@ -786,6 +788,15 @@ function boxesHtml(arr, max, path){
   return h;
 }
 
+function squareTrackHtml(current, max, path){
+  let h = `<span class="dots">`;
+  for (let i=1;i<=max;i++){
+    h += `<button class="box tracksquare ${i<=current?'on':''}" data-action="set-dot" data-path="${path}" data-val="${i}"></button>`;
+  }
+  h += `</span>`;
+  return h;
+}
+
 function renderJauges(c){
   const sMax = santeMax(c), wMax = volonteMax(c);
   return `
@@ -795,6 +806,12 @@ function renderJauges(c){
     <div class="gaugeblock"><span class="gaugelabel">Volonté</span>${boxesHtml(c.volonteDegats, wMax, 'volonteDegats')}<span class="gaugemax">max ${wMax} (Sang-froid+Résolution)</span></div>
     <div class="gaugeblock"><span class="gaugelabel">Bonus Crinos</span>${boxesHtml(c.crinosDegats, 4, 'crinosDegats')}<span class="gaugemax">+4 niveaux de santé sous forme crinos</span></div>
     <div class="gaugeblock"><span class="gaugelabel">Rage</span>${dotsHtml(c.rage,5,'rage')}<span class="gaugemax">0 à 5</span></div>
+  </div>
+  ${sectionHead('Harano & Hauglosk', '2 jauges jumelles de 5 cases')}
+  <div class="card">
+    <div class="gaugeblock"><span class="gaugelabel">Harano</span>${squareTrackHtml(c.harano||0, 5, 'harano')}</div>
+    <div class="gaugeblock"><span class="gaugelabel">Hauglosk</span>${squareTrackHtml(c.hauglosk||0, 5, 'hauglosk')}</div>
+    <p class="helptext" style="margin-bottom:0;">Une défaite marquante ou une Attache menacée/blessée déclenche un jet d'harano (dés = total des cases cochées sur les deux jauges, 1 dé min., pas de dés de Rage, diff.1). En cas d'échec, coche une case sur l'une des deux jauges (harano = défaitisme et retrait, hauglosk = fanatisme et imprudence — au choix du joueur/conteur selon la situation). Une jauge pleine fait définitivement basculer le personnage.</p>
   </div>
   ${sectionHead('Expérience')}
   <div class="card xprow">
