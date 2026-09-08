@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Werewolf : l'Apocalypse — Ledger</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+:root{
+  --paper:#ECE4CE;
+  --paper2:#E2D8BC;
+  --paper3:#D8CBA8;
+  --ink:#211D17;
+  --ink-soft:#5B5442;
+  --olive:#54502A;
+  --olive-dark:#3A3719;
+  --blood:#7A2E1E;
+  --line:#B8AC85;
+  --line-soft:#CFC3A0;
+  --ok:#3A5A34;
+  --shadow: 0 1px 0 rgba(33,29,23,.08);
+  --radius: 2px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0; overflow-x:hidden; max-width:100%;}
+body{
+  background-color:var(--paper);
+  background-image:
+    radial-gradient(ellipse at 20% 0%, rgba(255,255,255,.35), transparent 55%),
+    radial-gradient(ellipse at 90% 100%, rgba(0,0,0,.06), transparent 60%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='matrix' values='0 0 0 0 0.13  0 0 0 0 0.11  0 0 0 0 0.09  0 0 0 0.05 0'/></filter><rect width='120' height='120' filter='url(%23n)'/></svg>");
+  color:var(--ink);
+  font-family:'IBM Plex Sans',sans-serif;
+  font-size:15px;
+  line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+}
+h1,h2,h3,.disp{font-family:'Oswald',sans-serif; text-transform:uppercase; letter-spacing:.02em; font-weight:700; margin:0;}
+button{font-family:inherit; cursor:pointer;}
+input,select,textarea{font-family:inherit; font-size:inherit; color:var(--ink);}
+a{color:var(--olive-dark);}
+
+/* ---- App chrome ---- */
+#app{max-width:1180px; margin:0 auto; padding:0 0 90px;}
+.topbar{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:16px 20px; border-bottom:3px solid var(--ink);
+  background:linear-gradient(180deg, rgba(255,255,255,.25), transparent);
+  flex-wrap:wrap;
+}
+.wordmark{display:flex; flex-direction:column; line-height:1;}
+.wordmark .w1{font-size:26px; letter-spacing:.03em;}
+.wordmark .w2{font-size:12px; font-weight:500; color:var(--blood); letter-spacing:.18em; margin-top:2px; font-family:'Oswald',sans-serif;}
+.topbar-right{display:flex; align-items:center; gap:10px; font-size:12.5px; color:var(--ink-soft);}
+.pill{
+  border:1.5px solid var(--ink); border-radius:20px; padding:4px 12px;
+  background:var(--paper2); font-weight:600; letter-spacing:.03em;
+}
+.savebadge{font-size:11.5px; color:var(--ink-soft); min-width:64px; text-align:right;}
+.savebadge.saving{color:var(--blood);}
+.linkbtn{background:none;border:none;color:var(--olive-dark);text-decoration:underline;font-size:12.5px;padding:0;}
+
+/* ---- Landing ---- */
+.landing{max-width:640px; margin:60px auto; padding:0 20px;}
+.landing h1{font-size:44px; text-align:center;}
+.landing .sub{text-align:center; color:var(--ink-soft); margin-top:6px; margin-bottom:36px; font-size:14px;}
+.rolecards{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+.rolecard{
+  border:2px solid var(--ink); border-radius:var(--radius); padding:22px 18px; background:var(--paper2);
+  cursor:pointer; text-align:left; transition:transform .12s ease, box-shadow .12s ease;
+}
+.rolecard:hover{transform:translateY(-2px); box-shadow:3px 4px 0 var(--ink);}
+.rolecard h3{font-size:19px; margin-bottom:6px;}
+.rolecard p{margin:0; font-size:13px; color:var(--ink-soft);}
+.landing-panel{border:2px solid var(--ink); background:var(--paper2); padding:22px; margin-top:20px; border-radius:var(--radius);}
+.landing-panel h3{font-size:16px; margin-bottom:14px;}
+.field{margin-bottom:14px;}
+.field label{display:block; font-size:12px; font-weight:600; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.05em; margin-bottom:5px;}
+.field input, .field select, .field textarea{
+  width:100%; border:1.5px solid var(--ink); background:var(--paper); padding:8px 10px; border-radius:var(--radius);
+}
+.field textarea{resize:vertical; min-height:64px;}
+.row{display:flex; gap:12px;}
+.row > *{flex:1;}
+.btn{
+  border:2px solid var(--ink); background:var(--ink); color:var(--paper); padding:9px 18px;
+  border-radius:var(--radius); font-weight:600; font-size:13.5px; letter-spacing:.02em;
+}
+.btn:hover{background:var(--olive-dark);}
+.btn.secondary{background:var(--paper); color:var(--ink);}
+.btn.secondary:hover{background:var(--paper3);}
+.btn.small{padding:5px 10px; font-size:12px;}
+.btn.danger{background:var(--blood); border-color:var(--blood); color:var(--paper);}
+.err{color:var(--blood); font-size:12.5px; margin-top:8px;}
+.codebox{
+  font-family:'Oswald',sans-serif; font-size:28px; letter-spacing:.12em; text-align:center;
+  border:2px dashed var(--ink); padding:14px; margin:14px 0; background:var(--paper);
+}
+
+/* ---- Layout: sidebar + main ---- */
+.layout{display:flex; align-items:flex-start;}
+.sidebar{
+  width:200px; flex-shrink:0; padding:18px 10px; position:sticky; top:0;
+  border-right:2px solid var(--ink); min-height:calc(100vh - 90px);
+}
+.navbtn{
+  display:block; width:100%; text-align:left; background:none; border:none; padding:9px 12px;
+  font-family:'Oswald',sans-serif; font-weight:600; font-size:14px; letter-spacing:.02em;
+  color:var(--ink-soft); border-radius:var(--radius); margin-bottom:2px;
+}
+.navbtn:hover{background:var(--paper2);}
+.navbtn.active{background:var(--ink); color:var(--paper);}
+.main{flex:1; padding:22px 26px; min-width:0; max-width:100%; overflow-x:hidden;}
+
+.sectionhead{
+  background:var(--ink); color:var(--paper); padding:8px 14px; font-size:15px;
+  display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; border-radius:var(--radius);
+}
+.card{border:1.5px solid var(--line); background:rgba(255,255,255,.28); padding:16px; border-radius:var(--radius); margin-bottom:18px;}
+.card h4{font-size:12.5px; color:var(--olive); text-transform:uppercase; letter-spacing:.06em; margin-bottom:12px; border-bottom:1px solid var(--line); padding-bottom:6px;}
+
+.grid3{display:grid; grid-template-columns:repeat(3,1fr); gap:22px;}
+.traitrow{display:flex; align-items:center; justify-content:space-between; padding:4px 0; gap:8px;}
+.traitname{font-size:13.5px; font-weight:500;}
+.dots{display:flex; gap:4px; flex-shrink:0;}
+.dot{
+  width:15px; height:15px; border-radius:50%; border:1.6px solid var(--ink); background:transparent;
+  padding:0; display:inline-block;
+}
+.dot.on{background:var(--ink);}
+.dot.renown.on{background:var(--olive); border-color:var(--olive);}
+
+.boxes{display:flex; gap:3px; flex-wrap:wrap;}
+.box{
+  width:19px; height:19px; border:1.6px solid var(--ink); background:var(--paper);
+  font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; padding:0; line-height:1;
+  color:var(--blood); font-family:'Oswald',sans-serif;
+}
+.gaugeblock{display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:6px;}
+.gaugelabel{width:130px; font-family:'Oswald',sans-serif; font-weight:600; font-size:14px;}
+.gaugemax{font-size:11.5px; color:var(--ink-soft);}
+
+.tabs{display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap;}
+.tab{border:1.5px solid var(--ink); background:var(--paper2); padding:6px 13px; border-radius:20px; font-size:12.5px; font-weight:600;}
+.tab.active{background:var(--ink); color:var(--paper);}
+
+table.reftable{width:100%; min-width:640px; border-collapse:collapse; font-size:13px;}
+table.reftable th{text-align:left; font-family:'Oswald',sans-serif; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--olive); border-bottom:2px solid var(--ink); padding:6px 8px;}
+table.reftable td{padding:7px 8px; border-bottom:1px solid var(--line-soft); vertical-align:top;}
+table.reftable tr:hover td{background:rgba(255,255,255,.4);}
+
+.itemlist .item{border:1.5px solid var(--line); background:rgba(255,255,255,.3); padding:10px 12px; border-radius:var(--radius); margin-bottom:8px;}
+.item-top{display:flex; justify-content:space-between; align-items:flex-start; gap:10px;}
+.item-name{font-family:'Oswald',sans-serif; font-weight:600; font-size:14.5px;}
+.item-meta{font-size:11.5px; color:var(--ink-soft); margin-top:2px;}
+.item-effect{font-size:13px; margin-top:6px; color:var(--ink);}
+.iconbtn{border:1.5px solid var(--ink); background:var(--paper); width:24px; height:24px; border-radius:50%; font-size:14px; line-height:1; padding:0;}
+.iconbtn.remove{color:var(--blood); border-color:var(--blood);}
+
+.searchbar{display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;}
+.searchbar input[type=text]{flex:1; min-width:180px; border:1.5px solid var(--ink); padding:7px 10px; border-radius:var(--radius); background:var(--paper);}
+.searchbar select{border:1.5px solid var(--ink); padding:7px 10px; border-radius:var(--radius); background:var(--paper);}
+.chip{display:inline-block; font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; border:1px solid var(--olive); color:var(--olive); padding:1px 7px; border-radius:10px; margin-left:6px;}
+.chip.alias{border-color:var(--ink-soft); color:var(--ink-soft);}
+
+.formcard{border:1.5px solid var(--ink); padding:12px 14px; margin-bottom:10px; border-radius:var(--radius); background:rgba(255,255,255,.3);}
+.formcard h4{font-family:'Oswald',sans-serif; font-size:16px; margin:0 0 6px; color:var(--ink);}
+.formcard ul{margin:0; padding-left:18px; font-size:13px;}
+.formcard li{margin-bottom:2px;}
+
+.notegrid{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
+.xprow{display:flex; gap:20px;}
+
+.tablegrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:14px;}
+.charcard{border:2px solid var(--ink); background:var(--paper2); padding:14px; border-radius:var(--radius); cursor:pointer;}
+.charcard:hover{box-shadow:3px 4px 0 var(--ink); transform:translateY(-2px);}
+.charcard h4{font-family:'Oswald',sans-serif; font-size:16px; margin-bottom:2px;}
+.charcard .sub{font-size:12px; color:var(--ink-soft); margin-bottom:8px;}
+.miniGauges{display:flex; gap:10px; font-size:11px; color:var(--ink-soft);}
+
+.empty{text-align:center; color:var(--ink-soft); padding:30px 10px; font-size:13.5px;}
+.helptext{font-size:12px; color:var(--ink-soft); margin-top:4px;}
+
+@media (max-width: 860px){
+  .layout{flex-direction:column;}
+  .sidebar{
+    width:100%; position:fixed; top:auto; bottom:0; left:0; right:0; border-right:none; border-top:2px solid var(--ink);
+    background:var(--paper); display:flex; align-items:center; overflow-x:auto; padding:6px 6px; min-height:auto; height:auto; z-index:20;
+  }
+  .navbtn{white-space:nowrap; width:auto; flex-shrink:0; margin-bottom:0; margin-right:4px; font-size:12px; padding:8px 10px;}
+  .main{padding:16px 14px;}
+  .grid3{grid-template-columns:1fr;}
+  .notegrid{grid-template-columns:1fr;}
+  .rolecards{grid-template-columns:1fr;}
+  #app{padding-bottom:70px;}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+
+const GIFTS = [{"nom": "BOND DE LIÈVRE", "categorie": "Universel", "renomTotal": 1, "renomType": "Gloire", "cout": "1 test de Rage", "action": "complète", "groupement": "Force + Gloire", "duree": "—", "effet": "Force+Gloire : bond de 3 m à l'horizontale ou 2 m à la verticale par réussite.", "effetIncomplet": false}, {"nom": "COUP RAGEUR", "categorie": "Universel", "renomTotal": 1, "renomType": "Gloire", "cout": "1 test de Rage", "action": "gratuite", "groupement": "—", "duree": "une attaque", "effet": "Test de Rage : dés bonus (=Gloire) sur une seule attaque de Bagarre.", "effetIncomplet": false}, {"nom": "PATTES DE CHAT", "categorie": "Universel", "renomTotal": 1, "renomType": "Honneur", "cout": "1 point de Volonté", "action": "gratuite", "groupement": "aucun (Astuce + Survie pour l’activer par", "duree": "une scène", "effet": "Équilibre parfait, immunisé aux chutes ≤ 10×Honneur mètres ; activable par réflexe (Astuce+Survie diff.3).", "effetIncomplet": false}, {"nom": "REGARD DE TUEUR", "categorie": "Universel", "renomTotal": 1, "renomType": "Honneur", "cout": "1 test de Rage", "action": "complète", "groupement": "Charisme + Honneur opposé à Sang-froid", "duree": "une scène", "effet": "Charisme+Honneur vs Sang-froid+Résolution : fait fuir/soumettre humains et animaux à 2 m.", "effetIncomplet": false}, {"nom": "SENS PENUMBRAUX", "categorie": "Universel", "renomTotal": 1, "renomType": "Sagesse", "cout": "1 point de Volonté", "action": "gratuite", "groupement": "Intelligence + Sagesse", "duree": "une scène", "effet": "Intelligence+Sagesse vs Goulet : perçoit et agit simultanément dans le physique et l'Umbra.", "effetIncomplet": false}, {"nom": "YEUX DE LA CHOUETTE", "categorie": "Universel", "renomTotal": 1, "renomType": "Sagesse", "cout": "1 point de Volonté", "action": "gratuite", "groupement": "—", "duree": "une scène", "effet": "Vision nocturne parfaite ; dés bonus (=Sagesse) contre l'obscurité surnaturelle.", "effetIncomplet": false}, {"nom": "DÉVIATION DE LA FLÈCHE", "categorie": "Universel", "renomTotal": 4, "renomType": "Honneur", "cout": "1 test de Rage par adversaire supplémentaire", "action": "gratuite", "groupement": "Vigueur + Gloire", "duree": "une scène", "effet": "Dés bonus (=Honneur) pour esquiver un projectile sous forme crinos ; peut convertir la marge en bonus physique.", "effetIncomplet": false}, {"nom": "ESPRIT DE LA MÊLÉE", "categorie": "Universel", "renomTotal": 4, "renomType": "Gloire", "cout": "1 test de Rage par adversaire supplémentaire", "action": "gratuite", "groupement": "—", "duree": "une attaque", "effet": "Attaque un nombre d'adversaires égal à sa Gloire en une fois, sans pénalité.", "effetIncomplet": false}, {"nom": "SENS AFFÛTÉS", "categorie": "Universel", "renomTotal": 4, "renomType": "Sagesse", "cout": "1 test de Rage", "action": "complète", "groupement": "—", "duree": "une scène", "effet": "Réduit la difficulté de tous ses jets de Vigilance de sa valeur de Sagesse, pour la scène.", "effetIncomplet": false}, {"nom": "ADAPTATION CORPORELLE", "categorie": "Universel", "renomTotal": 7, "renomType": "Gloire", "cout": "1 test de Rage", "action": "mineure", "groupement": "Vigueur + Gloire", "duree": "une scène", "effet": "Vigueur+Gloire (diff.2) : redistribue des points entre attributs physiques (0-5) ; peut aussi permettre de se faufiler dans un espace très étroit.", "effetIncomplet": false}, {"nom": "LANGAGE DES BÊTES", "categorie": "Universel", "renomTotal": 7, "renomType": "Sagesse", "cout": "1 point de Volonté", "action": "complète", "groupement": "Manipulation + Sagesse, Charisme +Sagesse", "duree": "une scène", "effet": "Manipulation/Charisme+Sagesse : parle et négocie librement avec un animal.", "effetIncomplet": false}, {"nom": "CHANT DE L’ARAIGNÉE", "categorie": "Ragabash", "renomTotal": 2, "renomType": "Sagesse", "cout": "1 point de Volonté", "action": "complète", "groupement": "Résolution + Sagesse", "duree": "une scène", "effet": "Résolution+Sagesse : espionne une conversation à distance ; réussites = quantité d'infos captées.", "effetIncomplet": false}, {"nom": "IGNORANCE BÉNIE", "categorie": "Ragabash", "renomTotal": 2, "renomType": "Sagesse", "cout": "1 point de Volonté", "action": "mineure", "groupement": "—", "duree": "une scène", "effet": "Quasi invisible tant qu'il reste immobile et silencieux ; détection à difficulté +2+Sagesse.", "effetIncomplet": false}, {"nom": "RICANEMENT DE LA CORNEILLE", "categorie": "Ragabash", "renomTotal": 2, "renomType": "Honneur", "cout": "1 test de Rage", "action": "complète", "groupement": "Manipulation + Honneur opposé à Sangfroid + Empathie", "duree": "une scène ou jusqu’à ce que la cible résiste", "effet": "Manipulation+Honneur vs Sang-froid+Empathie : inflige des dégâts de Volonté superficiels à distance sociale.", "effetIncomplet": false}, {"nom": "ODEUR DE L’EAU VIVE", "categorie": "Ragabash", "renomTotal": 5, "renomType": "Sagesse", "cout": "aucun/1 point de Volonté", "action": "mineure", "groupement": "—", "duree": "une scène", "effet": "Ne laisse plus aucune trace physique ; dés bonus (=Sagesse) contre le pistage surnaturel.", "effetIncomplet": false}, {"nom": "OUVERTURE DU SCEAU", "categorie": "Ragabash", "renomTotal": 5, "renomType": "Honneur", "cout": "1 test de Rage", "action": "complète", "groupement": "Manipulation + Honneur", "duree": "—", "effet": "Ouvre automatiquement serrures mécaniques ; Manipulation+Honneur pour serrures électroniques/magiques.", "effetIncomplet": false}, {"nom": "POULS DE LA PROIE", "categorie": "Ragabash", "renomTotal": 5, "renomType": "Sagesse", "cout": "1 point de Volonté", "action": "complète", "groupement": "Intelligence + Sagesse", "duree": "une session", "effet": "Intelligence+Sagesse : piste une cible qui se cache (aucun jet contre une cible imprudente).", "effetIncomplet": false}, {"nom": "BÉNÉDICTION DE LUNA", "categorie": "Ragabash", "renomTotal": 8, "renomType": "Sagesse", "cout": "1 test de Rage + 1 point de Volonté", "action": "complète", "groupement": "—", "duree": "une nuit", "effet": "Convertit les dégâts d'argent en dégâts superficiels, à hauteur de sa Sagesse par source.", "effetIncomplet": false}, {"nom": "MILLE FORMES", "categorie": "Ragabash", "renomTotal": 8, "renomType": "Honneur", "cout": "au moins 1 test de Rage", "action": "mineure", "groupement": "Dextérité + Gloire", "duree": "", "effet": "Dextérité+Gloire : prend l'apparence d'un animal ou d'un humain précis.", "effetIncomplet": false}, {"nom": "PIE VOLEUSE", "categorie": "Ragabash", "renomTotal": 8, "renomType": "Honneur", "cout": "1 point de Volonté", "action": "complète", "groupement": "Intelligence + Honneur", "duree": "un tour par point de Volonté dépensé", "effet": "Intelligence+Honneur (diff.=moitié du Renom total du pouvoir visé) : vole une capacité surnaturelle acquise (pas innée) déjà vue en action ; substitue son Honneur, entretien 1 Volonté/tour.", "effetIncomplet": false}, {"nom": "PERCEPTION DES OMBRES", "categorie": "Théurge", "renomTotal": 2, "renomType": "Sagesse", "cout": "1 point de Volonté", "action": "gratuite", "groupement": "Astuce + Sagesse", "duree": "un tour", "effet": "Astuce+Sagesse : détecte une présence surnaturelle proche, sans localisation précise.", "effetIncomplet": false}, {"nom": "PIÈGE À ESPRIT", "categorie": "Théurge", "renomTotal": 2, "renomType": "Honneur", "cout": "1 point de Volonté", "action": "complète", "groupement": "Astuce + Honneur contre Puissance", "duree": "une scène", "effet": "Astuce+Honneur vs Puissance : pénalise (-2 dés) les tentatives de marchandage/commandement d'un esprit.", "effetIncomplet": false}, {"nom": "VISION D’AU-DELÀ", "categorie": "Théurge", "renomTotal": 2, "renomType": "Sagesse", "cout": "1 point de Volonté ou aucun", "action": "complète ou gratuite", "groupement": "Intelligence + Sagesse", "duree": "—", "effet": "Intelligence+Sagesse : déclenche ou reçoit des visions donnant des indices sur l'histoire ou un danger.", "effetIncomplet": false}, {"nom": "BANNISSEMENT D’ESPRIT", "categorie": "Théurge", "renomTotal": 5, "renomType": "Gloire", "cout": "1 test de Rage", "action": "complète", "groupement": "Résolution + Gloire opposé à Puissance", "duree": "une scène", "effet": "Résolution+Gloire vs Puissance : force un esprit possesseur à se retirer dans l'Umbra.", "effetIncomplet": false}, {"nom": "FILIN UMBRAL", "categorie": "Théurge", "renomTotal": 5, "renomType": "Sagesse", "cout": "1 à 3 points de Volonté", "action": "gratuite", "groupement": "Résolution + Sagesse", "duree": "jusqu’à la sortie de l’Umbra", "effet": "Résolution+Sagesse : fil invisible pour retracer son chemin dans l'Umbra ; bonus d'orientation.", "effetIncomplet": false}, {"nom": "PARLESPRIT", "categorie": "Théurge", "renomTotal": 5, "renomType": "Sagesse", "cout": "1 test de Rage", "action": "complète", "groupement": "Résolution + Honneur opposé à Puissance", "duree": "une scène au mieux", "effet": "Résolution+Sagesse : contact télépathique à distance avec une cible connue ou vue.", "effetIncomplet": false}, {"nom": "RÉGRESSION SAUVAGE", "categorie": "Théurge", "renomTotal": 5, "renomType": "Honneur", "cout": "1 test de Rage", "action": "complète", "groupement": "Intelligence + Gloire opposé à Résolution", "duree": "une scène", "effet": "Charisme+Honneur vs Puissance : force un esprit à exécuter des ordres (rien d'autodestructeur).", "effetIncomplet": false}, {"nom": "DRAIN D’ESPRIT", "categorie": "Théurge", "renomTotal": 5, "renomType": "Gloire", "cout": "1 test de Rage", "action": "complète", "groupement": "Résolution + Gloire opposé à Puissance", "duree": "—", "effet": "Résolution+Gloire vs Puissance : soigne des dégâts de Volonté en drainant un esprit.", "effetIncomplet": false}, {"nom": "CONVICTION ANCESTRALE", "categorie": "Philodox", "renomTotal": 2, "renomType": "Honneur", "cout": "1 point de Volonté", "action": "gratuite", "groupement": "—", "duree": "une scène", "effet": "Dés bonus (=Honneur) sur les jets de Persuasion visant d'autres Garous.", "effetIncomplet": false}, {"nom": "ODEUR DE LA VRAIE FORME", "categorie": "Philodox", "renomTotal": 2, "renomType": "Sagesse", "cout": "1 point de Volonté", "action": "gratuite", "groupement": "Astuce + Sagesse", "duree": "—", "effet": "Astuce+Sagesse : identifie la vraie nature d'une créature (Garou, Parent, etc.).", "effetIncomplet": false}, {"nom": "REPRÉSAILLES DU PORC-ÉPIC", "categorie": "Philodox", "renomTotal": 2, "renomType": "Gloire", "cout": "1 test de Rage", "action": "gratuite", "groupement": "—", "duree": "—", "effet": "Test de Rage : renvoie à l'attaquant en mêlée des dégâts superficiels égaux à sa Gloire.", "effetIncomplet": false}, {"nom": "SINCÉRITÉ DE GAÏA", "categorie": "Philodox", "renomTotal": 2, "renomType": "Gloire", "cout": "1 test de Rage", "action": "complète", "groupement": "Charisme + Gloire opposé à Sang-froid", "duree": "une question", "effet": "Charisme+Gloire vs Sang-froid : force une cible à dire la vérité.", "effetIncomplet": false}, {"nom": "ALLÉGEANCE DES BÊTES", "categorie": "Philodox", "renomTotal": 5, "renomType": "Honneur", "cout": "1 test de Rage", "action": "complète", "groupement": "Charisme + Honneur", "duree": "jusqu’à la fin de l’effet", "effet": "Charisme+Honneur (diff.3) : communique avec un animal et peut lui donner des ordres.", "effetIncomplet": false}, {"nom": "COMMANDEMENT DE L’ASSEMBLÉE", "categorie": "Philodox", "renomTotal": 5, "renomType": "Gloire", "cout": "1 test de Rage", "action": "gratuite", "groupement": "—", "duree": "une scène ou jusqu’à ce que l’effet se brise ou prenne", "effet": "Dés bonus (=Gloire) sur les jets de Persuasion/Représentation face à un public.", "effetIncomplet": false}, {"nom": "CROCS DU JUGEMENT", "categorie": "Philodox", "renomTotal": 5, "renomType": "Honneur", "cout": "1 point de Volonté", "action": "complète", "groupement": "Résolution + Honneur", "duree": "jusqu’à la mort de l’ennemi désigné ou la révocation", "effet": "Résolution+Honneur : scelle un serment prêté en personne devant le philodox.", "effetIncomplet": false}, {"nom": "ODEUR DU PASSÉ", "categorie": "Philodox", "renomTotal": 5, "renomType": "Sagesse", "cout": "1 point de Volonté", "action": "complète", "groupement": "Intelligence + Sagesse", "duree": "un tour", "effet": "Intelligence+Sagesse : perçoit les traces psychiques d'événements passés sur les lieux.", "effetIncomplet": false}, {"nom": "FLÉAU DES PARJURES", "categorie": "Philodox", "renomTotal": 8, "renomType": "Honneur", "cout": "1 point de Volonté", "action": "complète", "groupement": "—", "duree": "indéfinie ou jusqu'à ce que la promesse soit rompue", "effet": "Scelle un serment prêté en personne ; le philodox sent immédiatement s'il est rompu et gagne des dés (=Honneur) pour traquer le parjure.", "effetIncomplet": false}, {"nom": "GEAS", "categorie": "Philodox", "renomTotal": 8, "renomType": "Gloire", "cout": "1 test de Rage", "action": "complète", "groupement": "Manipulation + Gloire opposé à Sang-froid", "duree": "jusqu’à la réussite de l’obligation, la fin de la scène ou", "effet": "Manipulation+Gloire vs Sang-froid : impose un ordre contraignant à une cible.", "effetIncomplet": false}, {"nom": "IMPOSITION DE LA VRAIE FORME", "categorie": "Philodox", "renomTotal": 8, "renomType": "Honneur", "cout": "1 point de Volonté", "action": "complète", "groupement": "Manipulation + Honneur opposé à Vigueur", "duree": "un nombre de tours égal à la marge de réussite, ou", "effet": "Manipulation+Honneur vs Vigueur+Résolution : force une créature à reprendre sa forme naturelle.", "effetIncomplet": false}, {"nom": "SENS DU DEVOIR", "categorie": "Philodox", "renomTotal": 8, "renomType": "Honneur", "cout": "1 test de Rage", "action": "mineure", "groupement": "Honneur", "duree": "—", "effet": "1 dé par point d'Honneur : soigne des dégâts de Volonté (1×session).", "effetIncomplet": false}, {"nom": "CHANT DE SÉRÉNITÉ", "categorie": "Philodox", "renomTotal": 8, "renomType": "Honneur", "cout": "1 point de Volonté", "action": "complète", "groupement": "Sang-froid + Honneur", "duree": "", "effet": "Jet de don diff.3 : réduit la Rage des compagnons de meute à portée de voix.", "effetIncomplet": false}, {"nom": "HURLEMENT DU RASSEMBLEMENT", "categorie": "Galliard", "renomTotal": 2, "renomType": "Honneur", "cout": "1 test de Rage", "action": "mineure", "groupement": "Charisme + Honneur", "duree": "—", "effet": "Charisme+Honneur (diff.2) : les Garous qui répondent au hurlement et rejoignent l'utilisateur soignent un niveau de dégâts de Volonté superficiels (1×/session, portée +100m par marge).", "effetIncomplet": false}, {"nom": "MAGNÉTISME ANIMAL", "categorie": "Galliard", "renomTotal": 2, "renomType": "Gloire", "cout": "1 test de Rage", "action": "gratuite", "groupement": "—", "duree": "une scène", "effet": "Ajoute des dés (=Gloire) à tout jet social contre une cible humaine, pour la scène.", "effetIncomplet": false}, {"nom": "CHANT D’INSPIRATION", "categorie": "Galliard", "renomTotal": 2, "renomType": "Sagesse", "cout": "1 point de Volonté", "action": "complète", "groupement": "Manipulation + Sagesse", "duree": "", "effet": "Jet de don (diff.3, ou 2 si ≥2 points dans la compétence choisie) : la meute gagne +1 dé (ou +2 en victoire critique) sur une compétence sociale/mentale choisie.", "effetIncomplet": false}, {"nom": "APPEL DES POSSÉDÉS", "categorie": "Galliard", "renomTotal": 5, "renomType": "Honneur", "cout": "1 point de Volonté", "action": "mineure", "groupement": "Sang-froid + Honneur opposé à Résolution", "duree": "une scène", "effet": "Sang-froid+Honneur vs Résolution+Empathie : attire les créatures possédées vers la source de l'appel.", "effetIncomplet": false}, {"nom": "CHANT DE COURAGE", "categorie": "Galliard", "renomTotal": 5, "renomType": "Honneur", "cout": "1 test de Rage", "action": "complète", "groupement": "Charisme + Honneur", "duree": "une scène", "effet": "Jet de don diff.3 : les compagnons de meute à portée de voix peuvent relancer autant de dés qu'ils veulent en dépensant de la Volonté (au lieu de 3 max), 1×/session.", "effetIncomplet": false}, {"nom": "YEUX DU COBRA", "categorie": "Galliard", "renomTotal": 5, "renomType": "Gloire", "cout": "1 point de Volonté", "action": "mineure", "groupement": "Charisme + Gloire opposé à Sang-froid", "duree": "une scène ou jusqu’à la fin de l’effet, par exemple", "effet": "Charisme+Gloire vs Sang-froid : hypnotise une cible qui s'approche du galliard, en transe.", "effetIncomplet": false}, {"nom": "BRIS DE CHAÎNES", "categorie": "Galliard", "renomTotal": 8, "renomType": "Gloire", "cout": "1 test de Rage", "action": "complète", "groupement": "Résolution + Gloire", "duree": "—", "effet": "Jet de don variable : rompt un effet de contrôle mental ou de charme actif sur le sujet.", "effetIncomplet": false}, {"nom": "CONTRE TOUTE ATTENTE", "categorie": "Galliard", "renomTotal": 8, "renomType": "Honneur", "cout": "1 test de Rage", "action": "complète", "groupement": "Gloire", "duree": "—", "effet": "Dés (=Honneur) lancés dès que la santé aggravée est pleine : chaque réussite soigne un niveau (1×session).", "effetIncomplet": false}, {"nom": "GRIFFES ACÉRÉES", "categorie": "Ahroun", "renomTotal": 2, "renomType": "Gloire", "cout": "aucun, hormis le coût de la métamorphose", "action": "gratuite", "groupement": "Dextérité + Gloire", "duree": "—", "effet": "Dextérité+Gloire lors du changement de forme : annule le malus d'action mineure de la métamorphose.", "effetIncomplet": false}, {"nom": "INTERRUPTION DE LA FUITE DU LÂCHE", "categorie": "Ahroun", "renomTotal": 2, "renomType": "Honneur", "cout": "1 test de Rage", "action": "complète", "groupement": "Résolution + Honneur opposé à Sang-froid", "duree": "une scène", "effet": "Résolution+Honneur vs Sang-froid : réduit une cible fuyante à l'allure d'une marche.", "effetIncomplet": false}, {"nom": "SENS DU DANGER", "categorie": "Ahroun", "renomTotal": 2, "renomType": "Sagesse", "cout": "—", "action": "gratuite", "groupement": "—", "duree": "—", "effet": "Ajoute des dés (=Sagesse) pour repérer un piège/embuscade/surprise, mais seulement si un échec le mettrait en danger immédiat (pas en fouille passive).", "effetIncomplet": false}, {"nom": "COLÈRE PRIMITIVE", "categorie": "Ahroun", "renomTotal": 5, "renomType": "Gloire", "cout": "—", "action": "mineure", "groupement": "Gloire", "duree": "—", "effet": "S'inflige 1 dégât aggravé pour gagner des points de Rage = réussites sur un jet de Gloire (1×session).", "effetIncomplet": false}, {"nom": "GRIFFES DU VENT", "categorie": "Ahroun", "renomTotal": 5, "renomType": "Sagesse", "cout": "1 test de Rage", "action": "mineure", "groupement": "Charisme + Honneur opposé à Sang-froid", "duree": "une scène", "effet": "Griffes ignorant les armures ordinaires ; jet de don pour toucher tous les adversaires à portée en une fois.", "effetIncomplet": false}, {"nom": "VRAIE PEUR", "categorie": "Ahroun", "renomTotal": 5, "renomType": "Gloire", "cout": "1 test de Rage", "action": "complète", "groupement": "Charisme + Gloire opposé à Sang-froid", "duree": "une scène", "effet": "Charisme+Gloire vs Sang-froid : terrifie une cible à 5 m ; effet automatique sur humains/animaux ordinaires.", "effetIncomplet": false}, {"nom": "ARMURE DE LUNA", "categorie": "Ahroun", "renomTotal": 8, "renomType": "Honneur", "cout": "1 point de Volonté", "action": "mineure", "groupement": "—", "duree": "une scène", "effet": "Convertit, par point d'Honneur, un niveau de dégâts aggravés de feu/argent en dégâts superficiels (sans les diviser ensuite).", "effetIncomplet": false}, {"nom": "GRIFFES D’ARGENT", "categorie": "Ahroun", "renomTotal": 8, "renomType": "Honneur", "cout": "aucun/1 point de Volonté", "action": "gratuite/mineure", "groupement": "—", "duree": "une scène", "effet": "Griffes en argent : dégâts aggravés aux autres Garous (gratuit sous crinos), mais 1 dégât aggravé/tour à soi-même et jet de Résolution+Honneur diff.3 chaque tour pour maintenir l'effet.", "effetIncomplet": false}, {"nom": "BAISER D’HÉLIOS", "categorie": "Ahroun", "renomTotal": 8, "renomType": "Gloire", "cout": "1 test de Rage", "action": "mineure", "groupement": "—", "duree": "une scène", "effet": "Immunité aux dégâts de feu/chaleur pour la durée ; réduit les dégâts reçus de sa Gloire par tour.", "effetIncomplet": false}, {"nom": "ÉCART COMBLÉ", "categorie": "Ahroun", "renomTotal": 8, "renomType": "Gloire", "cout": "aucun/1 point de Volonté", "action": "gratuite/mineure", "groupement": "—", "duree": "une scène", "effet": "Se téléporte jusqu'à un ennemi visible (3 m par point de Gloire) et peut attaquer dans le même tour.", "effetIncomplet": false}, {"nom": "LANGAGE DU MONDE", "categorie": "Arpenteurs silencieux", "renomTotal": 3, "renomType": "Sagesse", "cout": "1 point de Volonté", "action": "complète", "groupement": "Intelligence + Sagesse", "duree": "une scène", "effet": "Intelligence+Sagesse : comprend une langue inconnue, difficulté selon sa rareté.", "effetIncomplet": false}, {"nom": "MURMURES DU PASSAGE", "categorie": "Arpenteurs silencieux", "renomTotal": 3, "renomType": "Sagesse", "cout": "1 point de Volonté", "action": "mineure", "groupement": "—", "duree": "une scène", "effet": "Rend inaudibles ses propres bruits et atténue les sons dans un rayon de 10 m.", "effetIncomplet": false}, {"nom": "TROUVAILLE", "categorie": "Arpenteurs silencieux", "renomTotal": 3, "renomType": "Sagesse", "cout": "1 point de Volonté", "action": "complète", "groupement": "Astuce + Sagesse", "duree": "une scène", "effet": "Astuce+Sagesse : localise l'exemplaire le plus proche d'un objet ordinaire non-vivant (difficulté selon rareté/précision demandée).", "effetIncomplet": false}, {"nom": "FILIN UMBRAL", "categorie": "Arpenteurs silencieux", "renomTotal": 6, "aliasDe": "théurge"}, {"nom": "FOUISSAGE", "categorie": "Arpenteurs silencieux", "renomTotal": 6, "renomType": "Sagesse", "cout": "1 test de Rage", "action": "complète", "groupement": "Force + Sagesse", "duree": "une scène", "effet": "Force+Sagesse : creuse la terre, 2 m par utilisation (+2 m par point de marge).", "effetIncomplet": false}, {"nom": "ODEUR DE L’EAU VIVE", "categorie": "Arpenteurs silencieux", "renomTotal": 6, "aliasDe": "ragabash"}, {"nom": "CONTRE TOUTE ATTENTE", "categorie": "Arpenteurs silencieux", "renomTotal": 9, "aliasDe": "galliard"}, {"nom": "ÉCART COMBLÉ", "categorie": "Arpenteurs silencieux", "renomTotal": 9, "aliasDe": "ahroun"}, {"nom": "LA VOIE DORÉE", "categorie": "Arpenteurs silencieux", "renomTotal": 9, "renomType": "Sagesse", "cout": "1 point de Volonté", "action": "complète", "groupement": "—", "duree": "une scène", "effet": "Dés bonus (=Sagesse) pour repérer et éviter les dangers/obstacles statiques d'une zone.", "effetIncomplet": false}, {"nom": "SENS DU DEVOIR", "categorie": "Arpenteurs silencieux", "renomTotal": 9, "aliasDe": "philodox"}, {"nom": "EXTINCTION", "categorie": "Conseil fantôme", "renomTotal": 3, "renomType": "Sagesse", "cout": "1 test de Rage", "action": "complète", "groupement": "—", "duree": "une scène", "effet": "Éteint une source de lumière par point de Sagesse en vue ; pénalise les jets basés sur la vue à proximité.", "effetIncomplet": false}, {"nom": "PRÉSAGES", "categorie": "Conseil fantôme", "renomTotal": 3, "renomType": "Sagesse", "cout": "1 point de Volonté", "action": "complète", "groupement": "Intelligence + Sagesse", "duree": "une scène", "effet": "Intelligence+Sagesse : perçoit à distance un lieu précis via un miroir/surface réfléchissante.", "effetIncomplet": false}, {"nom": "SENS DU DANGER", "categorie": "Conseil fantôme", "renomTotal": 3, "aliasDe": "ahroun"}, {"nom": "ÉTREINTE DU SERPENT", "categorie": "Conseil fantôme", "renomTotal": 6, "renomType": "Sagesse", "cout": "1 test de Rage", "action": "mineure", "groupement": "Astuce + Sagesse", "duree": "une scène ou jusqu’à leur dissipation ou leur", "effet": "Astuce+Sagesse : brouillard qui agrippe plusieurs cibles à 10 m ; peut diviser le groupement.", "effetIncomplet": false}, {"nom": "MAINS DE LA TERRE", "categorie": "Conseil fantôme", "renomTotal": 6, "renomType": "Sagesse", "cout": "1 test de Rage", "action": "complète", "groupement": "Résolution + Sagesse, Astuce + Sagesse", "duree": "une scène au maximum", "effet": "Résolution/Astuce+Sagesse : déplace un objet à distance par télékinésie, un tour de concentration.", "effetIncomplet": false}, {"nom": "PARLESPRIT", "categorie": "Conseil fantôme", "renomTotal": 6, "aliasDe": "théurge"}, {"nom": "ASPECT VOILÉ", "categorie": "Conseil fantôme", "renomTotal": 9, "renomType": "Sagesse", "cout": "1 point de Volonté", "action": "complète", "groupement": "—", "duree": "un nombre de tours (ou une dizaine de secondes environ dans une scène plus longue) égal à la valeur de Sagesse du", "effet": "Indétectable à la vue ou aux caméras tant qu'il garde une allure de marche.", "effetIncomplet": false}, {"nom": "PIE VOLEUSE", "categorie": "Ragabash", "renomTotal": 9, "aliasDe": "ragabash", "renomType": "Honneur", "cout": "1 point de Volonté", "action": "complète", "groupement": "Intelligence + Honneur", "duree": "un tour par point de Volonté dépensé", "effet": "Intelligence+Honneur (diff.=moitié du Renom total du pouvoir visé) : vole une capacité surnaturelle acquise (pas innée) déjà vue en action ; substitue son Honneur, entretien 1 Volonté/tour.", "effetIncomplet": false}, {"nom": "RANDONNÉE ONIRIQUE", "categorie": "Conseil fantôme", "renomTotal": 9, "aliasDe": "galliard"}, {"nom": "INSTINCT DE MEUTE", "categorie": "Crocs d'argent", "renomTotal": 3, "renomType": "Honneur", "cout": "aucun/1 point de Volonté", "action": "gratuite", "groupement": "Sang-froid + Honneur", "duree": "une scène", "effet": "Perçoit en permanence l'état général de ses compagnons de meute ; Sang-froid+Honneur pour un détail précis.", "effetIncomplet": false}, {"nom": "LA CONVENTION D’ARGENT", "categorie": "Crocs d'argent", "renomTotal": 3, "renomType": "Honneur", "cout": "1 test de Rage", "action": "mineure", "groupement": "—", "duree": "une scène", "effet": "Les esprits évitent d'attaquer le Garou ; ignore des dégâts par point d'Honneur chaque tour.", "effetIncomplet": false}, {"nom": "SANG DE LA MEUTE", "categorie": "Crocs d'argent", "renomTotal": 6, "renomType": "Honneur", "cout": "1 test de Rage", "action": "gratuite", "groupement": "—", "duree": "un tour", "effet": "Transfère ses tests de Rage à un compagnon de meute, jusqu'à un nombre égal à son Honneur.", "effetIncomplet": false}, {"nom": "UNITÉ DE LA MEUTE", "categorie": "Crocs d'argent", "renomTotal": 6, "renomType": "Honneur", "cout": "1 point de Volonté", "action": "gratuite", "groupement": "—", "duree": "un tour", "effet": "Dépense de la Volonté à la place d'un compagnon de meute, jusqu'à sa valeur d'Honneur.", "effetIncomplet": false}, {"nom": "BÉNÉDICTION DE LUNA", "categorie": "Crocs d'argent", "renomTotal": 9, "aliasDe": "ragabash"}, {"nom": "GRIFFES D’ARGENT", "categorie": "Crocs d'argent", "renomTotal": 9, "aliasDe": "ahroun"}, {"nom": "VENGEUR DE LUNA", "categorie": "Crocs d'argent", "renomTotal": 9, "renomType": "Honneur", "cout": "1 test de Rage", "action": "gratuite", "groupement": "—", "duree": "une scène", "effet": "En combat, +1 dé (attaque/défense) par membre de meute Affaibli, +2 par membre mourant, plafonné à sa valeur d'Honneur.", "effetIncomplet": false}, {"nom": "CARESSE DE LA MÈRE", "categorie": "Enfants de Gaïa", "renomTotal": 3, "aliasDe": "théurge"}, {"nom": "CHANT DE SÉRÉNITÉ", "categorie": "Enfants de Gaïa", "renomTotal": 3, "aliasDe": "galliard"}, {"nom": "ODEUR FRATERNELLE", "categorie": "Enfants de Gaïa", "renomTotal": 3, "renomType": "Sagesse", "cout": "1 point de Volonté", "action": "complète", "groupement": "—", "duree": "une scène", "effet": "Passe inaperçu dans un groupe étranger tant qu'il adopte une forme adaptée à la foule.", "effetIncomplet": false}, {"nom": "APAISEMENT DE LA FUREUR BESTIALE", "categorie": "Enfants de Gaïa", "renomTotal": 6, "renomType": "Sagesse", "cout": "1 point de Volonté", "action": "complète", "groupement": "Sang-froid + Sagesse", "duree": "—", "effet": "Sang-froid+Sagesse (diff.=Rage de la cible) : sort une cible de frénésie, 1 pt de Volonté.", "effetIncomplet": false}, {"nom": "PRÉSENCE DE VIE", "categorie": "Enfants de Gaïa", "renomTotal": 6, "renomType": "Sagesse", "cout": "1 point de Volonté", "action": "complète", "groupement": "Intelligence + Sagesse", "duree": "une scène", "effet": "Perçoit automatiquement toute forme de vie ordinaire ou surnaturelle dans une zone de type maison.", "effetIncomplet": false}, {"nom": "OUVERTURE DU SCEAU", "categorie": "Furies noires", "renomTotal": null, "aliasDe": "ragabash"}, {"nom": "ARMURE DE LUNA", "categorie": "Furies noires", "renomTotal": 9, "aliasDe": "ahroun"}, {"nom": "PARTAGE DE LA DOULEUR", "categorie": "Furies noires", "renomTotal": 9, "renomType": "Sagesse", "cout": "1 point de Volonté", "action": "complète", "groupement": "Résolution + Gloire", "duree": "une scène", "effet": "Répartit les dégâts subis par un membre de meute désigné sur le reste du groupe.", "effetIncomplet": false}, {"nom": "CICATRICE DE KALI", "categorie": "Furies noires", "renomTotal": 6, "renomType": "Gloire", "cout": "1 point de Volonté", "action": "complète", "groupement": "—", "duree": "la prochaine attaque de Bagarre ou de Mêlée, ou une", "effet": "Ajoute sa Gloire aux dégâts d'une attaque si celle-ci achève complètement la cible.", "effetIncomplet": false}, {"nom": "DARDS DE LA GUÊPE", "categorie": "Furies noires", "renomTotal": 6, "renomType": "Gloire", "cout": "—", "action": "complète", "groupement": "Dextérité + Gloire", "duree": "—", "effet": "Dextérité+Gloire : attaque à distance avec les griffes (ou griffes improvisées si la forme n'en a pas).", "effetIncomplet": false}, {"nom": "ASPECT DE GORGONE", "categorie": "Furies noires", "renomTotal": 9, "renomType": "Gloire", "cout": "1 point de Volonté", "action": "complète", "groupement": "Charisme + Gloire opposé à Astuce", "duree": "une scène", "effet": "Charisme+Gloire vs Astuce+Occultisme : pétrifie sur place quiconque ne détourne pas le regard.", "effetIncomplet": false}, {"nom": "BRIS DE CHAÎNES", "categorie": "Furies noires", "renomTotal": 9, "aliasDe": "galliard"}, {"nom": "CORPS D’AVORTON", "categorie": "Furies noires", "renomTotal": 9, "aliasDe": "ragabash"}, {"nom": "DRAIN D’ESPRIT", "categorie": "Furies noires", "renomTotal": 9, "aliasDe": "théurge"}, {"nom": "BRASSIN BÉNI", "categorie": "Gardiens du grand cerf", "renomTotal": 3, "renomType": "Gloire", "cout": "1 point de Volonté", "action": "complète", "groupement": "—", "duree": "une session au maximum", "effet": "Bénit un liquide : quiconque en boit gagne des dés (=Gloire) pour résister à la peur/effets mentaux.", "effetIncomplet": false}, {"nom": "FRONTIÈRE SACRÉE", "categorie": "Gardiens du grand cerf", "renomTotal": 3, "renomType": "Gloire", "cout": "aucun", "action": "complète", "groupement": "—", "duree": "un nombre de nuits égal à la valeur de Gloire de", "effet": "Trace une frontière (10 m par point de Gloire) ; averti dès qu'elle est franchie.", "effetIncomplet": false}, {"nom": "BAISER D’HÉLIOS", "categorie": "Gardiens du grand cerf", "renomTotal": 9, "aliasDe": "ahroun"}, {"nom": "BARRIÈRE VIVANTE", "categorie": "Gardiens du grand cerf", "renomTotal": 9, "aliasDe": "théurge"}, {"nom": "LE BOIS VIVANT", "categorie": "Gardiens du grand cerf", "renomTotal": 9, "renomType": "Gloire", "cout": "1 test de Rage", "action": "complète", "groupement": "Manipulation + Gloire", "duree": "une scène", "effet": "La végétation proche attaque quiconque agresse le Garou (1×/tour) : Manipulation+Gloire avec des arbres, Gloire seule avec de petites plantes ; inutile sans végétation.", "effetIncomplet": false}, {"nom": "CHANT D’INSPIRATION", "categorie": "Gardiens du grand cerf", "renomTotal": 6, "aliasDe": "galliard"}, {"nom": "DOMINATION TERRITORIALE", "categorie": "Gardiens du grand cerf", "renomTotal": 6, "renomType": "Gloire", "cout": "1 test de Rage", "action": "gratuite", "groupement": "Manipulation + Gloire", "duree": "une scène", "effet": "Sous la pleine lune, lie son esprit à un territoire marqué en au moins 5 points.", "effetIncomplet": false}, {"nom": "REGARD DE BALOR", "categorie": "Gardiens du grand cerf", "renomTotal": 6, "renomType": "Gloire", "cout": "1 point de Volonté", "action": "complète", "groupement": "Charisme + Gloire opposé à Sang-froid", "duree": "une scène", "effet": "Charisme+Gloire vs Sang-froid+Occultisme : douleur qui retire 2 dés à tous les jets de la cible.", "effetIncomplet": false}, {"nom": "CHANT DE RAGE", "categorie": "Griffes rouges", "renomTotal": 3, "aliasDe": "galliard"}, {"nom": "DÉCOMPOSITION", "categorie": "Griffes rouges", "renomTotal": 3, "renomType": "Honneur", "cout": "1 test de Rage", "action": "complète", "groupement": "Résolution + Honneur", "duree": "—", "effet": "Referme les plaies d'un cadavre et efface les traces de la cause du décès.", "effetIncomplet": false}, {"nom": "CROCS DU JUGEMENT", "categorie": "Griffes rouges", "renomTotal": 6, "aliasDe": "philodox"}, {"nom": "GRIFFES ACÉRÉES", "categorie": "Griffes rouges", "renomTotal": 6, "aliasDe": "ahroun"}, {"nom": "TUEUR CACHÉ", "categorie": "Griffes rouges", "renomTotal": 6, "renomType": "Honneur", "cout": "1 test de Rage", "action": "complète", "groupement": "—", "duree": "une scène au maximum", "effet": "Force tout ce qui vole bas dans un rayon de 100 m à se poser (sous peine de s'écraser).", "effetIncomplet": false}, {"nom": "SABLES MOUVANTS", "categorie": "Griffes rouges", "renomTotal": 6, "renomType": "Honneur", "cout": "1 point de Volonté", "action": "complète/mineure", "groupement": "Intelligence + Honneur", "duree": "une scène", "effet": "Transforme une zone au sol en piège engluant qui ralentit et pénalise la défense physique.", "effetIncomplet": false}, {"nom": "BOUCLIER DU KAOS", "categorie": "Griffes rouges", "renomTotal": 9, "renomType": "Honneur", "cout": "1 point de Volonté", "action": "mineure", "groupement": "—", "duree": "indéfinie", "effet": "Immunité partielle contre les armes ordinaires tant que le don reste actif.", "effetIncomplet": false}, {"nom": "MAGNÉTISME ANIMAL", "categorie": "Griffes rouges", "renomTotal": 9, "aliasDe": "galliard"}, {"nom": "SINCÉRITÉ DE GAÏA", "categorie": "Griffes rouges", "renomTotal": 9, "aliasDe": "philodox"}, {"nom": "GRONDEMENT DE DÉFI", "categorie": "Griffes rouges", "renomTotal": 6, "aliasDe": "ahroun"}, {"nom": "MILLE FORMES", "categorie": "Griffes rouges", "renomTotal": 6, "aliasDe": "ragabash"}, {"nom": "RÉGRESSION SAUVAGE", "categorie": "Griffes rouges", "renomTotal": 6, "aliasDe": "théurge"}, {"nom": "CHANT DE L’ARAIGNÉE", "categorie": "Marcheurs sur verre", "renomTotal": 3, "aliasDe": "ragabash"}, {"nom": "ENTREPEAU", "categorie": "Marcheurs sur verre", "renomTotal": 3, "renomType": "Sagesse", "cout": "au moins 1 test de Rage", "action": "complète", "groupement": "Résolution + Sagesse", "duree": "une scène/un tour par point de marge", "effet": "Résolution+Sagesse : tatoue un objet sur sa peau pour le stocker/transporter sans le porter.", "effetIncomplet": false}, {"nom": "POIGNE D’AU-DELÀ", "categorie": "Marcheurs sur verre", "renomTotal": 3, "aliasDe": "théurge"}, {"nom": "RÉCUPÉRATION DE DONNÉES", "categorie": "Marcheurs sur verre", "renomTotal": 9, "renomType": "Sagesse", "cout": "1 point de Volonté", "action": "complète", "groupement": "Intelligence + Sagesse", "duree": "jusqu’à une scène", "effet": "Intelligence+Sagesse : lit des données perdues/endommagées sur un support numérique ou papier.", "effetIncomplet": false}, {"nom": "DOPPELGÄNGER", "categorie": "Rongeurs d'os", "renomTotal": null, "renomType": "Sagesse", "cout": "1 point de Volonté", "action": "complète", "groupement": "Manipulation + Sagesse", "duree": "une scène", "effet": "Manipulation+Sagesse (diff.3) : copie l'apparence d'un visage connu ; la marge aide à l'imitation sociale.", "effetIncomplet": false}, {"nom": "FÉTIDITÉ", "categorie": "Rongeurs d'os", "renomTotal": 3, "renomType": "Honneur", "cout": "1 test de Rage", "action": "mineure", "groupement": "—", "duree": "une scène", "effet": "Puanteur qui repousse (Sang-froid+Survie vs Vigueur+Honneur) toute créature dotée d'odorat, sauf en combat.", "effetIncomplet": false}, {"nom": "IGNORANCE BÉNIE", "categorie": "Rongeurs d'os", "renomTotal": 3, "aliasDe": "ragabash"}, {"nom": "VISION D’AU-DELÀ", "categorie": "Rongeurs d'os", "renomTotal": 3, "aliasDe": "théurge"}, {"nom": "ODEUR DU PASSÉ", "categorie": "Rongeurs d'os", "renomTotal": 6, "aliasDe": "philodox"}, {"nom": "RUMEURS DE LA RUE", "categorie": "Rongeurs d'os", "renomTotal": 6, "renomType": "Honneur", "cout": "1 point de Volonté", "action": "complète", "groupement": "Résolution + Honneur", "duree": "une scène", "effet": "Résolution+Honneur : écoute à distance une conversation dans la rue, selon l'affluence.", "effetIncomplet": false}, {"nom": "UN VISAGE DANS LA FOULE", "categorie": "Rongeurs d'os", "renomTotal": 6, "renomType": "Honneur", "cout": "1 point de Volonté", "action": "mineure", "groupement": "—", "duree": "", "effet": "Sème ses poursuivants en se fondant dans une foule (difficulté de suivi +Honneur).", "effetIncomplet": false}, {"nom": "ENTRE LES FISSURES", "categorie": "Rongeurs d'os", "renomTotal": 9, "renomType": "Honneur", "cout": "1 test de Rage", "action": "complète", "groupement": "—", "duree": "un tour", "effet": "Se glisse dans une fissure et ressort d'une autre un tour plus tard.", "effetIncomplet": false}, {"nom": "TROMPE-LA-MORT", "categorie": "Rongeurs d'os", "renomTotal": 9, "aliasDe": "galliard"}, {"nom": "UN MILLIER D’YEUX", "categorie": "Rongeurs d'os", "renomTotal": 9, "renomType": "Honneur", "cout": "1 point de Volonté", "action": "complète", "groupement": "Astuce + Honneur", "duree": "une scène", "effet": "Astuce+Honneur : emprunte les sens des animaux proches pour observer une zone.", "effetIncomplet": false}, {"nom": "DÉFAUT FATAL", "categorie": "Seigneurs de l'ombre", "renomTotal": 3, "renomType": "Gloire", "cout": "1 test de Rage", "action": "mineure", "groupement": "—", "duree": "une scène", "effet": "Intelligence+Gloire vs Sang-froid+Subterfuge : après étude, révèle une faiblesque exploitable de la cible.", "effetIncomplet": false}, {"nom": "COUP DE TONNERRE", "categorie": "Seigneurs de l'ombre", "renomTotal": 6, "renomType": "Gloire", "cout": "1 test de Rage", "action": "complète", "groupement": "Force + Gloire opposé à Vigueur + Astuce", "duree": "un tour", "effet": "Force+Gloire vs Vigueur+Astuce (rayon 20m) : renverse quiconque échoue ; les autres subissent -2 dés à toute action (hors défense), sauf victoire critique.", "effetIncomplet": false}, {"nom": "VRAIE PEUR", "categorie": "Seigneurs de l'ombre", "renomTotal": 6, "aliasDe": "ahroun"}, {"nom": "YEUX DU COBRA", "categorie": "Seigneurs de l'ombre", "renomTotal": 6, "aliasDe": "galliard"}, {"nom": "CONDAMNÉ AU PELOTON", "categorie": "Seigneurs de l'ombre", "renomTotal": 9, "renomType": "Gloire", "cout": "1 point de Volonté", "action": "complète", "groupement": "Force + Gloire opposé à Vigueur + Astuce", "duree": "un tour", "effet": "Force+Gloire vs Vigueur+Astuce (par contact) : la cible perd ses protections contre les tirs.", "effetIncomplet": false}, {"nom": "GEAS", "categorie": "Seigneurs de l'ombre", "renomTotal": 9, "aliasDe": "philodox"}, {"nom": "CAMOUFLAGE", "categorie": "Traqueurs des tempêtes", "renomTotal": 3, "renomType": "Honneur", "cout": "aucun/1 point de Volonté", "action": "gratuite/complète", "groupement": "—", "duree": "une scène", "effet": "Rend plus difficile à repérer à vue (+Honneur) ; extensible à la meute en un tour (1 pt Volonté).", "effetIncomplet": false}, {"nom": "LACÉRATIONS DU VENT", "categorie": "Traqueurs des tempêtes", "renomTotal": 3, "renomType": "Honneur", "cout": "1 test de Rage", "action": "complète", "groupement": "Résolution + Honneur opposé à Vigueur + Survie ou Dextérité + Athlétisme", "duree": "un nombre de tours égal à la marge de réussite", "effet": "Bourrasque glaciale sur un groupe à 20m : -2 dés aux prochaines attaques physiques des cibles qui échouent, ou renverse une cible isolée (Dextérité+Athlétisme pour résister).", "effetIncomplet": false}, {"nom": "POULS DE LA PROIE", "categorie": "Traqueurs des tempêtes", "renomTotal": 3, "aliasDe": "ragabash"}, {"nom": "FLÉAU DES PARJURES", "categorie": "Traqueurs des tempêtes", "renomTotal": 9, "aliasDe": "philodox"}, {"nom": "GRIFFES DE LA MORT GLACÉE", "categorie": "Traqueurs des tempêtes", "renomTotal": 9, "renomType": "Honneur", "cout": "aucun/1 test de Rage", "action": "gratuite/mineure", "groupement": "Astuce + Honneur opposé à Vigueur + Survie", "duree": "une scène", "effet": "Astuce+Honneur vs Vigueur+Survie : la première griffure gèle et ralentit la cible.", "effetIncomplet": false}, {"nom": "SANG DES ÉTENDUES DÉSOLÉES", "categorie": "Traqueurs des tempêtes", "renomTotal": 9, "renomType": "Honneur", "cout": "aucun", "action": "complète", "groupement": "—", "duree": "—", "effet": "Dés bonus (=Honneur) pour échapper à la surveillance électronique (caméras, capteurs).", "effetIncomplet": false}];
+const RITES = [{"nom": "Rite de Conjuration", "groupement": "Honneur + Occultisme", "effet": "Purifie une personne, un lieu ou un objet possédé ; chasse les esprits présents."}, {"nom": "Rite de Rage", "groupement": "Gloire + Intimidation", "effet": "Attise la Rage de la meute avant l'action ; victoire = +1 Rage par participant."}, {"nom": "Rite des Archives négligées", "groupement": "Sagesse + Investigation", "effet": "Brouille durablement les traces administratives/informatiques des participants."}, {"nom": "Rite de Tranquillité", "groupement": "Sagesse + Représentation", "effet": "Apaise la meute ; victoire = -1 Rage par participant, sans dégâts."}, {"nom": "Rite de Contrition", "groupement": "Honneur + Étiquette", "effet": "Rachat auprès d'un esprit offensé ou allègement d'une mortification."}, {"nom": "Rite du Caern vivant", "groupement": "Sagesse + Artisanat", "effet": "Entretien mensuel d'un caern ; échec répété fait baisser sa valeur de Caern."}, {"nom": "Rite de Consécration", "groupement": "—", "effet": "Lie une tenue au Garou : elle survit aux changements de forme sans être déchirée."}, {"nom": "Rite du Passage dans l’ombre", "groupement": "Renom + Occultisme", "effet": "Ouvre un passage temporaire entre le monde physique et l'Umbra pour toute la meute."}, {"nom": "Rite de la Quête des lignées", "groupement": "Sagesse + Investigation", "effet": "Traque à l'odeur un membre de la Parentèle proche de son Premier Changement."}, {"nom": "Rite d’Invocation d’esprit", "groupement": "Honneur + Persuasion (opposé)", "effet": "Convoque un esprit absent ou récalcitrant, sans garantie de coopération."}, {"nom": "Rite du Lien", "groupement": "Gloire + Occultisme (opposé)", "effet": "Lie un esprit à un objet, un lieu ou une personne pour une durée limitée."}, {"nom": "Rite d’Opprobre", "groupement": "—", "effet": "Châtiment social sévère : aggrave la mortification d'un Garou fautif jusqu'à repentance."}, {"nom": "Rite de Patronage", "groupement": "Renom + Étiquette", "effet": "La meute adopte (ou change) un esprit tutélaire commun et ses faveurs."}, {"nom": "Rite de Célébration", "groupement": "Honneur + Représentation", "effet": "Festivités qui resserrent les liens de meute (Honneur+Représentation). Réalisable après une victoire : restaure de la Volonté à tous les membres, une fois par scénario."}, {"nom": "Rite de Création de caern", "groupement": "Sagesse + Artisanat", "effet": "Éveille un nouveau caern ou augmente la valeur de Caern d'un site existant."}, {"nom": "Rite de la Renaissance du loup", "groupement": "Renom + Commandement", "effet": "La meute sacrifie de la Rage pour ramener un membre qui a perdu le loup."}, {"nom": "Rite du Vallon voilé", "groupement": "Sagesse + Artisanat", "effet": "Dissimule un caern aux regards indiscrets pendant un mois lunaire."}, {"nom": "Rite des Murmures champêtres", "groupement": "Sagesse + Survie", "effet": "Transforme les environs d'un caern en système de surveillance naturel."}, {"nom": "Rite de Passage", "groupement": "— (social)", "effet": "Épreuve initiatique qui confère officiellement le statut de Garou à un Parent."}, {"nom": "Rite de Satire", "groupement": "— (social)", "effet": "Moquerie publique et ritualisée d'un Garou fautif ; avertissement avant l'Opprobre."}, {"nom": "Rite d’Accomplissement", "groupement": "— (social)", "effet": "Célèbre publiquement les exploits et le statut d'un Garou."}, {"nom": "Veillée pour les défunts", "groupement": "— (social)", "effet": "Rend hommage à un Garou récemment décédé."}, {"nom": "Rite du Loup d’hiver", "groupement": "— (social)", "effet": "Adieu solennel d'un Garou trop âgé ou blessé qui choisit de mettre fin à ses jours."}];
+const ATOUTS = [{"nom": "Abri", "type": "atout", "cout": "1-2", "effet": "Un refuge sûr. •• Camouflé : -2 dés pour vous localiser. •• Sécurisé : +2 dés pour repérer une intrusion. Cumulables."}, {"nom": "Apparence", "type": "atout", "cout": "1-4", "effet": "• Chien-loup : passe pour un chien sous forme lupus. •• Beau : +1 dé social lié au physique. •••• Splendide : +2 dés. Handicaps Laid (-1 dé) / Repoussant (-2 dés)."}, {"nom": "Caern", "type": "atout", "cout": "1 / 5", "effet": "• Accès à un caern étranger. ••••• Caern éveillé : +1 à la valeur de Caern d'un sept que vous rejoignez/découvrez."}, {"nom": "Conditions surnaturelles", "type": "atout", "cout": "1-3 (ou handicap)", "effet": "Traits liés au surnaturel : affinité/rage lunaire, ou handicaps (fléau mythique, obstacle mythique, signe mythique, malédiction de vieillesse, esclave de la lune)."}, {"nom": "Emploi", "type": "atout", "cout": "1-2", "effet": "Couverture professionnelle. • +1 dé pour justifier ses allées-venues. •• +2 dés, des collègues corroborent l'alibi."}, {"nom": "Linguistique", "type": "atout", "cout": "1+ par langue", "effet": "1 point = 1 langue supplémentaire lue/écrite/parlée couramment. Handicap Illettré : Érudition/Sciences plafonnées à 1."}, {"nom": "Toxicomanie", "type": "handicap", "cout": "1-2", "effet": "Dépendance à une substance : -1 dé (•) ou -2 dés (••) à tous les groupements sans consommation récente."}];
+const HISTORIQUES = [{"nom": "Alliés", "type": "historique", "cout": "1-6 (cumulable)", "effet": "Personnes qui vous soutiennent, hors meute. Valeur = Efficacité+Fiabilité. Handicap opposé : Ennemis / Harceleur."}, {"nom": "Contacts", "type": "historique", "cout": "1-3", "effet": "Sources d'information selon leur accès : anecdotique, confidentiel, ou classifié/gouvernemental."}, {"nom": "Masque", "type": "historique", "cout": "1-2", "effet": "Fausse identité. • Résiste à la police locale. •• Résiste au FBI/Interpol ; débloque Fantôme et Costumier (1pt chacun)."}, {"nom": "Mentor", "type": "historique", "cout": "1-5", "effet": "Un Garou/une meute plus expérimentée qui conseille et aide ponctuellement. Handicap opposé : Adversaire."}, {"nom": "Pacte avec un esprit", "type": "historique", "cout": "1-5", "effet": "Esprit allié invocable, de Puissance 1 à 5 ; peut être Compagnon (suit partout) ou avoir un Hôte physique."}, {"nom": "Renommée", "type": "historique", "cout": "1-5", "effet": "Notoriété publique : chaque point réduit de 1 la difficulté des jets sociaux face à ses admirateurs. Handicaps : Infamie, Sombre secret, Partenaire tristement célèbre."}, {"nom": "Ressources", "type": "historique", "cout": "1-5", "effet": "1×/session, ajoute des dés (=valeur) à un groupement pertinent (achat, corruption, etc.). Handicap : Indigent."}, {"nom": "Saga", "type": "historique", "cout": "variable", "effet": "Lien avec une faction/trame majeure de la société garou ; chaque niveau s'achète indépendamment (voir annexe Sagas)."}, {"nom": "Talisman", "type": "historique", "cout": "variable", "effet": "Un objet mystique personnel (klaive, piège à esprit, amulette...), créé avec le conteur ou choisi dans la liste des Talismans."}];
+const ATTRIBUTS = {"Physiques": ["Force", "Dextérité", "Vigueur"], "Sociaux": ["Charisme", "Manipulation", "Sang-froid"], "Mentaux": ["Intelligence", "Astuce", "Résolution"]};
+const COMPETENCES = {"Physiques": ["Armes à feu", "Artisanat", "Athlétisme", "Bagarre", "Conduite", "Furtivité", "Larcin", "Mêlée", "Survie"], "Sociales": ["Animaux", "Commandement", "Empathie", "Étiquette", "Expérience de la rue", "Intimidation", "Persuasion", "Représentation", "Subterfuge"], "Mentales": ["Érudition", "Finances", "Investigation", "Médecine", "Occultisme", "Politique", "Sciences", "Technologie", "Vigilance"]};
+const AUSPICES = ["Ragabash", "Théurge", "Philodox", "Galliard", "Ahroun"];
+const TRIBUS = ["Arpenteurs silencieux", "Conseil fantôme", "Crocs d'argent", "Enfants de Gaïa", "Furies noires", "Gardiens du grand cerf", "Griffes rouges", "Marcheurs sur verre", "Rongeurs d'os", "Seigneurs de l'ombre", "Traqueurs des tempêtes"];
+const FORMES = [{"nom": "Homidé", "cout": "Gratuit", "details": ["Immunisé contre l'argent"]}, {"nom": "Glabro", "cout": "1 test de Rage", "details": ["Jets physiques : +2 dés", "Jets sociaux : -2 dés*", "Régénération : 1 dégât superficiel par test de Rage"]}, {"nom": "Crinos", "cout": "2 tests de Rage", "details": ["Dépense 1 Volonté par tour, sinon frénésie", "Jets physiques : +4 dés", "Niveaux de santé : +4", "Jets sociaux et de Furtivité : échec automatique", "Régénération : 2 dégâts superficiels par test de Rage", "Griffes : dégâts +3 · Morsure : dégâts aggravés +1", "Provoque le Délire"]}, {"nom": "Hispo", "cout": "1 test de Rage", "details": ["Jets physiques : +2 dés**", "Jets de Furtivité : -2 dés", "Jets sociaux : limités aux loups et aux Garous", "Régénération : 1 dégât superficiel par test de Rage", "Morsure : dégâts aggravés +1"]}, {"nom": "Lupus", "cout": "Gratuit", "details": ["Immunisé contre l'argent", "Jets sociaux : limités aux loups et aux Garous"]}];
+const FORMES_NOTE = "* Ne s'applique pas à l'Intimidation et aux non-humains. ** Ne s'applique pas aux jets de Furtivité.";
+const GIFT_CATEGORIES = ["Universel", ...AUSPICES, ...TRIBUS];
+
+
+/* ============ FIREBASE CONFIG — remplace par ta config de projet ============ */
+const firebaseConfig = {
+  apiKey: "AIzaSyCRfjsl7p9K9oEdMRyaPyuhlydMp1APwtM",
+  authDomain: "werewolf-c822e.firebaseapp.com",
+  projectId: "werewolf-c822e",
+  storageBucket: "werewolf-c822e.firebasestorage.app",
+  messagingSenderId: "732364730167",
+  appId: "1:732364730167:web:2a1b0c31765f49ec9f74b2"
+};
+let fbReady = false;
+let db = null;
+try {
+  if (window.firebase && firebaseConfig.apiKey !== "COLLE_TA_CLE_API") {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+    fbReady = true;
+  }
+} catch (e) { console.warn("Firebase non configuré :", e); }
+
+const CHAR_COL = "ww_personnages";
+const TABLE_COL = "ww_tables";
+
+/* ============ Helpers ============ */
+function genCode(len=6){
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let s = "";
+  for (let i=0;i<len;i++) s += chars[Math.floor(Math.random()*chars.length)];
+  return s;
+}
+function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
+function debounce(fn, wait){
+  let t = null;
+  return (...args) => { clearTimeout(t); t = setTimeout(()=>fn(...args), wait); };
+}
+function el(html){
+  const t = document.createElement('template');
+  t.innerHTML = html.trim();
+  return t.content.firstElementChild;
+}
+function escapeHtml(s){
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ============ Character factory ============ */
+function newCharacter(){
+  const attrs = {}; Object.values(ATTRIBUTS).flat().forEach(a => attrs[a] = 1);
+  const skills = {}; Object.values(COMPETENCES).flat().forEach(s => skills[s] = 0);
+  return {
+    nom: "", concept: "", chronique: "", auspice: "", tribu: "", espritTutelaire: "",
+    attributs: attrs,
+    competences: skills,
+    santeDegats: [], // array of 0/1/2 per box, length derived dynamically but we store actual clicks up to current max
+    volonteDegats: [],
+    crinosDegats: [],
+    rage: 0,
+    renom: { Gloire: 0, Honneur: 0, Sagesse: 0 },
+    avantages: [], // {nom, valeur, note, type}
+    dons: [], // {nom, categorie, renomTotal, cout, action, groupement, duree, effet}
+    rites: [], // {nom, groupement, effet}
+    apparence: "", histoire: "",
+    xpTotal: 0, xpDepensee: 0,
+    notes: "",
+    updatedAt: null,
+  };
+}
+
+function santeMax(c){ return (c.attributs["Vigueur"]||0) + 3; }
+function volonteMax(c){ return (c.attributs["Sang-froid"]||0) + (c.attributs["Résolution"]||0); }
+
+function ensureTrackLength(arr, len){
+  while (arr.length < len) arr.push(0);
+  if (arr.length > len) arr.length = len;
+  return arr;
+}
+
+/* ============ Global state ============ */
+const state = {
+  role: null,        // 'joueur' | 'mj'
+  view: 'landing',   // 'landing' | 'sheet' | 'table'
+  landingPanel: null, // 'joueur' | 'mj' | null
+  section: 'identite',
+  myCode: null,
+  character: null,
+  tableCode: null,
+  tableMembers: {},  // code -> character data (cached)
+  loadError: '',
+  saving: false,
+  unsubChar: null,
+  unsubTable: null,
+  giftFilter: { cat: 'Tous', q: '' },
+  riteFilter: { q: '' },
+};
+
+/* ============ Persistence ============ */
+const saveCharacterDebounced = debounce(async function(){
+  if (!fbReady || !state.myCode || !state.character) { renderSaveBadge('local'); return; }
+  state.saving = true; renderSaveBadge('saving');
+  try {
+    await db.collection(CHAR_COL).doc(state.myCode).set({
+      data: state.character,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    state.saving = false; renderSaveBadge('ok');
+  } catch(e){
+    console.error(e); state.saving = false; renderSaveBadge('err');
+  }
+}, 700);
+
+function renderSaveBadge(status){
+  const b = document.getElementById('savebadge');
+  if (!b) return;
+  b.classList.remove('saving');
+  if (status === 'saving'){ b.textContent = 'Enregistrement…'; b.classList.add('saving'); }
+  else if (status === 'ok'){ b.textContent = 'Enregistré'; }
+  else if (status === 'local'){ b.textContent = 'Local (Firebase non configuré)'; }
+  else if (status === 'err'){ b.textContent = 'Erreur de sauvegarde'; }
+}
+
+function listenToCharacter(code){
+  if (state.unsubChar) state.unsubChar();
+  if (!fbReady) return;
+  state.unsubChar = db.collection(CHAR_COL).doc(code).onSnapshot(doc => {
+    if (!doc.exists) return;
+    const snap = doc.data();
+    if (doc.metadata.hasPendingWrites) return; // our own echo
+    state.character = Object.assign(newCharacter(), snap.data);
+    renderApp();
+  });
+}
+
+async function createCharacter(){
+  state.myCode = genCode();
+  state.character = newCharacter();
+  state.role = 'joueur';
+  state.view = 'sheet';
+  state.section = 'identite';
+  renderApp();
+  if (fbReady){
+    try {
+      await db.collection(CHAR_COL).doc(state.myCode).set({ data: state.character, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      listenToCharacter(state.myCode);
+    } catch(e){ console.error(e); }
+  }
+}
+
+async function loadCharacterByCode(code){
+  code = code.trim().toUpperCase();
+  if (!code) return;
+  state.loadError = '';
+  if (!fbReady){
+    state.loadError = "Firebase n'est pas configuré dans ce fichier — impossible de charger un code existant.";
+    renderApp(); return;
+  }
+  try {
+    const doc = await db.collection(CHAR_COL).doc(code).get();
+    if (!doc.exists){ state.loadError = "Aucun personnage trouvé avec ce code."; renderApp(); return; }
+    state.myCode = code;
+    state.character = Object.assign(newCharacter(), doc.data().data);
+    state.role = 'joueur';
+    state.view = 'sheet';
+    state.section = 'identite';
+    listenToCharacter(code);
+    renderApp();
+  } catch(e){ console.error(e); state.loadError = "Erreur de connexion à Firebase."; renderApp(); }
+}
+
+/* ---- Table (MJ) ---- */
+async function openTable(code){
+  code = code.trim().toUpperCase();
+  if (!code) return;
+  state.loadError = '';
+  if (!fbReady){ state.loadError = "Firebase n'est pas configuré dans ce fichier."; renderApp(); return; }
+  state.tableCode = code;
+  state.role = 'mj';
+  state.view = 'table';
+  try {
+    const doc = await db.collection(TABLE_COL).doc(code).get();
+    if (!doc.exists){
+      await db.collection(TABLE_COL).doc(code).set({ memberCodes: [], updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    }
+    listenToTable(code);
+  } catch(e){ console.error(e); state.loadError = "Erreur de connexion à Firebase."; }
+  renderApp();
+}
+
+function listenToTable(code){
+  if (state.unsubTable) state.unsubTable();
+  state.unsubTable = db.collection(TABLE_COL).doc(code).onSnapshot(doc => {
+    if (!doc.exists) return;
+    const members = doc.data().memberCodes || [];
+    members.forEach(mc => {
+      db.collection(CHAR_COL).doc(mc).onSnapshot(cdoc => {
+        if (cdoc.exists) state.tableMembers[mc] = cdoc.data().data;
+        else state.tableMembers[mc] = null;
+        renderApp();
+      });
+    });
+    Object.keys(state.tableMembers).forEach(mc => { if (!members.includes(mc)) delete state.tableMembers[mc]; });
+    renderApp();
+  });
+}
+
+async function addMemberToTable(code){
+  code = code.trim().toUpperCase();
+  if (!code || !fbReady) return;
+  await db.collection(TABLE_COL).doc(state.tableCode).update({
+    memberCodes: firebase.firestore.FieldValue.arrayUnion(code)
+  });
+}
+async function removeMemberFromTable(code){
+  if (!fbReady) return;
+  await db.collection(TABLE_COL).doc(state.tableCode).update({
+    memberCodes: firebase.firestore.FieldValue.arrayRemove(code)
+  });
+}
+
+function openMemberSheet(code){
+  state.myCode = code;
+  state.character = state.tableMembers[code] ? Object.assign(newCharacter(), state.tableMembers[code]) : newCharacter();
+  state.view = 'sheet';
+  state.section = 'identite';
+  state.fromTable = true;
+  listenToCharacter(code);
+  renderApp();
+}
+
+/* ============ Rendering ============ */
+function renderApp(){
+  const root = document.getElementById('app');
+  if (state.view === 'landing') root.innerHTML = renderLanding();
+  else if (state.view === 'sheet') root.innerHTML = renderSheetView();
+  else if (state.view === 'table') root.innerHTML = renderTableView();
+  attachHandlers();
+}
+
+function renderLanding(){
+  return `
+  <div class="landing">
+    <h1>Werewolf<br>l'Apocalypse</h1>
+    <p class="sub">Ledger de meute — fiches de personnage partagées</p>
+    <div class="rolecards">
+      <button class="rolecard" data-action="pick-joueur">
+        <h3>Je suis joueur</h3>
+        <p>Créer un nouveau personnage ou reprendre le tien avec ton code.</p>
+      </button>
+      <button class="rolecard" data-action="pick-mj">
+        <h3>Je suis meneur</h3>
+        <p>Ouvrir le tableau de ta table pour suivre les personnages de tes joueurs.</p>
+      </button>
+    </div>
+    <div id="landing-panel">${state.landingPanel==='joueur' ? renderLandingPanelJoueur() : state.landingPanel==='mj' ? renderLandingPanelMJ() : ''}</div>
+  </div>`;
+}
+
+function renderLandingPanelJoueur(){
+  return `
+  <div class="landing-panel">
+    <h3>Joueur</h3>
+    <button class="btn" data-action="new-character" style="margin-bottom:16px;">+ Nouveau personnage</button>
+    <div class="field">
+      <label>Reprendre avec un code</label>
+      <div class="row">
+        <input type="text" id="load-code-input" placeholder="ex. 7K2Q9X" maxlength="8" style="text-transform:uppercase;">
+        <button class="btn secondary" data-action="load-character" style="flex:0 0 auto;">Charger</button>
+      </div>
+    </div>
+    ${state.loadError ? `<div class="err">${escapeHtml(state.loadError)}</div>` : ''}
+  </div>`;
+}
+function renderLandingPanelMJ(){
+  return `
+  <div class="landing-panel">
+    <h3>Meneur de jeu</h3>
+    <div class="field">
+      <label>Code de table (existant ou nouveau)</label>
+      <div class="row">
+        <input type="text" id="table-code-input" placeholder="ex. TABLE1" maxlength="10" style="text-transform:uppercase;">
+        <button class="btn secondary" data-action="open-table" style="flex:0 0 auto;">Ouvrir</button>
+      </div>
+    </div>
+    ${state.loadError ? `<div class="err">${escapeHtml(state.loadError)}</div>` : ''}
+  </div>`;
+}
+
+function renderTopbar(){
+  const roleLabel = state.role === 'mj' ? 'MJ' : 'Joueur';
+  return `
+  <div class="topbar">
+    <div class="wordmark"><span class="w1">Werewolf</span><span class="w2">L'Apocalypse — Ledger</span></div>
+    <div class="topbar-right">
+      ${state.fromTable ? `<button class="linkbtn" data-action="back-to-table">← Retour au tableau</button>` : ''}
+      <span class="pill">${roleLabel}</span>
+      ${state.myCode ? `<span class="pill" title="Partage ce code pour retrouver ce personnage">Code : ${state.myCode}</span>` : ''}
+      <span class="savebadge" id="savebadge">${fbReady ? '' : 'Local (Firebase non configuré)'}</span>
+      <button class="linkbtn" data-action="go-home">Accueil</button>
+    </div>
+  </div>`;
+}
+
+const SECTIONS = [
+  ['identite','Identité'], ['attributs','Attributs'], ['competences','Compétences'],
+  ['jauges','Jauges'], ['renom','Renom'], ['avantages','Avantages'],
+  ['dons','Dons & Rites'], ['formes','Formes'], ['notes','Notes'],
+];
+
+function renderSheetView(){
+  const c = state.character;
+  return `
+  ${renderTopbar()}
+  <div class="layout">
+    <div class="sidebar">
+      ${SECTIONS.map(([k,label]) => `<button class="navbtn ${state.section===k?'active':''}" data-action="nav" data-section="${k}">${label}</button>`).join('')}
+    </div>
+    <div class="main">
+      ${renderSection(c)}
+    </div>
+  </div>`;
+}
+
+function renderSection(c){
+  switch(state.section){
+    case 'identite': return renderIdentite(c);
+    case 'attributs': return renderAttributs(c);
+    case 'competences': return renderCompetences(c);
+    case 'jauges': return renderJauges(c);
+    case 'renom': return renderRenom(c);
+    case 'avantages': return renderAvantages(c);
+    case 'dons': return renderDons(c);
+    case 'formes': return renderFormes(c);
+    case 'notes': return renderNotes(c);
+    default: return '';
+  }
+}
+
+function sectionHead(title, meta=''){
+  return `<div class="sectionhead"><span>${title}</span><span style="font-size:11px;font-weight:400;">${meta}</span></div>`;
+}
+
+function renderIdentite(c){
+  return `
+  ${sectionHead('Identité')}
+  <div class="card">
+    <div class="row">
+      <div class="field"><label>Nom du personnage</label><input type="text" data-field="nom" value="${escapeHtml(c.nom)}"></div>
+      <div class="field"><label>Concept</label><input type="text" data-field="concept" value="${escapeHtml(c.concept)}"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Chronique</label><input type="text" data-field="chronique" value="${escapeHtml(c.chronique)}"></div>
+      <div class="field"><label>Esprit tutélaire</label><input type="text" data-field="espritTutelaire" value="${escapeHtml(c.espritTutelaire)}"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Auspice</label>
+        <select data-field="auspice">
+          <option value="">—</option>
+          ${AUSPICES.map(a=>`<option value="${a}" ${c.auspice===a?'selected':''}>${a}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field"><label>Tribu</label>
+        <select data-field="tribu">
+          <option value="">—</option>
+          ${TRIBUS.map(t=>`<option value="${t}" ${c.tribu===t?'selected':''}>${t}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+  </div>
+  ${sectionHead('Apparence & Histoire')}
+  <div class="card notegrid">
+    <div class="field"><label>Apparence</label><textarea data-field="apparence" rows="6">${escapeHtml(c.apparence)}</textarea></div>
+    <div class="field"><label>Histoire</label><textarea data-field="histoire" rows="6">${escapeHtml(c.histoire)}</textarea></div>
+  </div>`;
+}
+
+function dotsHtml(current, max, path, extraClass=''){
+  let h = `<span class="dots">`;
+  for (let i=1;i<=max;i++){
+    h += `<button class="dot ${extraClass} ${i<=current?'on':''}" data-action="set-dot" data-path="${path}" data-val="${i}"></button>`;
+  }
+  h += `</span>`;
+  return h;
+}
+
+function renderAttributs(c){
+  return `
+  ${sectionHead('Attributs', '9 traits · 1 à 5')}
+  <div class="grid3">
+    ${Object.entries(ATTRIBUTS).map(([cat, list]) => `
+      <div class="card"><h4>${cat}</h4>
+        ${list.map(a => `<div class="traitrow"><span class="traitname">${a}</span>${dotsHtml(c.attributs[a]||0,5,'attributs.'+a)}</div>`).join('')}
+      </div>`).join('')}
+  </div>`;
+}
+
+function renderCompetences(c){
+  return `
+  ${sectionHead('Compétences', '27 traits · 0 à 5')}
+  <div class="grid3">
+    ${Object.entries(COMPETENCES).map(([cat, list]) => `
+      <div class="card"><h4>${cat}</h4>
+        ${list.map(s => `<div class="traitrow"><span class="traitname">${s}</span>${dotsHtml(c.competences[s]||0,5,'competences.'+s)}</div>`).join('')}
+      </div>`).join('')}
+  </div>`;
+}
+
+function boxesHtml(arr, max, path){
+  ensureTrackLength(arr, max);
+  let h = `<div class="boxes">`;
+  for (let i=0;i<max;i++){
+    const v = arr[i]||0;
+    const mark = v===1 ? '/' : (v===2 ? '&times;' : '');
+    h += `<button class="box" data-action="cycle-box" data-path="${path}" data-idx="${i}">${mark}</button>`;
+  }
+  h += `</div>`;
+  return h;
+}
+
+function renderJauges(c){
+  const sMax = santeMax(c), wMax = volonteMax(c);
+  return `
+  ${sectionHead('Jauges')}
+  <div class="card">
+    <div class="gaugeblock"><span class="gaugelabel">Santé</span>${boxesHtml(c.santeDegats, sMax, 'santeDegats')}<span class="gaugemax">max ${sMax} (Vigueur+3) — clic : vide → superficiel → aggravé</span></div>
+    <div class="gaugeblock"><span class="gaugelabel">Volonté</span>${boxesHtml(c.volonteDegats, wMax, 'volonteDegats')}<span class="gaugemax">max ${wMax} (Sang-froid+Résolution)</span></div>
+    <div class="gaugeblock"><span class="gaugelabel">Bonus Crinos</span>${boxesHtml(c.crinosDegats, 4, 'crinosDegats')}<span class="gaugemax">+4 niveaux de santé sous forme crinos</span></div>
+    <div class="gaugeblock"><span class="gaugelabel">Rage</span>${dotsHtml(c.rage,5,'rage')}<span class="gaugemax">0 à 5</span></div>
+  </div>
+  ${sectionHead('Expérience')}
+  <div class="card xprow">
+    <div class="field"><label>XP totale</label><input type="number" min="0" data-field="xpTotal" value="${c.xpTotal||0}"></div>
+    <div class="field"><label>XP dépensée</label><input type="number" min="0" data-field="xpDepensee" value="${c.xpDepensee||0}"></div>
+  </div>`;
+}
+
+function renderRenom(c){
+  return `
+  ${sectionHead('Renom')}
+  <div class="card grid3">
+    ${['Gloire','Honneur','Sagesse'].map(r => `<div class="traitrow"><span class="traitname">${r}</span>${dotsHtml(c.renom[r]||0,5,'renom.'+r,'renown')}</div>`).join('')}
+  </div>`;
+}
+
+function refItemPointCost(item){ return item.cout || ''; }
+
+function renderAvantages(c){
+  const options = [...ATOUTS.map(a=>({...a, kind:'Atout'})), ...HISTORIQUES.map(a=>({...a, kind:'Historique'}))];
+  return `
+  ${sectionHead('Avantages', 'Atouts & Historiques')}
+  <div class="card">
+    <div class="searchbar">
+      <select id="avantage-select">
+        <option value="">— choisir dans la liste —</option>
+        ${options.map((o,i)=>`<option value="${i}">${o.kind} · ${o.nom}</option>`).join('')}
+      </select>
+      <button class="btn small" data-action="add-avantage-list">Ajouter</button>
+    </div>
+    <div class="row">
+      <input type="text" id="avantage-custom-nom" placeholder="Ou nom personnalisé (handicap, saga...)">
+      <input type="number" id="avantage-custom-val" placeholder="Valeur" style="max-width:90px;">
+      <button class="btn small secondary" data-action="add-avantage-custom">Ajouter</button>
+    </div>
+  </div>
+  <div class="itemlist">
+    ${c.avantages.length===0 ? '<div class="empty">Aucun avantage pour l\'instant.</div>' : ''}
+    ${c.avantages.map((a,i) => `
+      <div class="item">
+        <div class="item-top">
+          <span class="item-name">${escapeHtml(a.nom)} ${a.type?`<span class="chip">${a.type}</span>`:''}</span>
+          <button class="iconbtn remove" data-action="remove-avantage" data-idx="${i}">&times;</button>
+        </div>
+        <div class="item-meta">
+          Valeur :
+          <input type="number" min="0" max="5" style="width:52px;" data-action="edit-avantage-val" data-idx="${i}" value="${a.valeur||0}">
+          ${a.effetRef ? '' : ''}
+        </div>
+        ${a.effetRef ? `<div class="item-effect">${escapeHtml(a.effetRef)}</div>` : ''}
+        <div class="field" style="margin-top:8px;"><input type="text" placeholder="Note (qui, quoi, détail...)" data-action="edit-avantage-note" data-idx="${i}" value="${escapeHtml(a.note||'')}"></div>
+      </div>`).join('')}
+  </div>`;
+}
+
+/* ---- Dons & Rites ---- */
+function giftLabel(g){
+  return `${g.nom}${g.aliasDe ? ` <span class="chip alias">= ${g.aliasDe}</span>` : ''}`;
+}
+
+function renderDonsCatalogRows(){
+  const f = state.giftFilter;
+  const q = f.q.trim().toLowerCase();
+  return GIFTS.filter(g => (f.cat==='Tous' || g.categorie===f.cat) && (!q || g.nom.toLowerCase().includes(q)))
+    .slice(0, 80)
+    .map((g, idx) => {
+      const realIdx = GIFTS.indexOf(g);
+      const effet = g.aliasDe ? `Identique au don « ${g.aliasDe} » d'une autre liste.` : g.effet;
+      return `<tr>
+        <td>${giftLabel(g)}${g.effetIncomplet?' <span class="chip alias">à vérifier</span>':''}</td>
+        <td>${g.categorie}</td>
+        <td>${g.renomTotal ?? '—'}</td>
+        <td>${g.aliasDe ? '—' : (g.groupement||'—')}</td>
+        <td>${g.aliasDe ? '—' : (g.cout||'—')}</td>
+        <td style="max-width:280px;">${escapeHtml(effet||'')}</td>
+        <td><button class="iconbtn" data-action="add-don" data-idx="${realIdx}">+</button></td>
+      </tr>`;
+    }).join('');
+}
+
+function renderRitesCatalogRows(){
+  const q = state.riteFilter.q.trim().toLowerCase();
+  return RITES.filter(r => !q || r.nom.toLowerCase().includes(q)).map((r) => {
+    const realIdx = RITES.indexOf(r);
+    return `<tr>
+      <td>${r.nom}</td><td>${r.groupement}</td>
+      <td style="max-width:320px;">${escapeHtml(r.effet)}</td>
+      <td><button class="iconbtn" data-action="add-rite" data-idx="${realIdx}">+</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderDons(c){
+  return `
+  ${sectionHead('Dons connus', c.dons.length+' don(s)')}
+  <div class="itemlist">
+    ${c.dons.length===0 ? '<div class="empty">Aucun don appris pour l\'instant — ajoute-en depuis la base ci-dessous.</div>' : ''}
+    ${c.dons.map((g,i) => `
+      <div class="item">
+        <div class="item-top">
+          <span class="item-name">${escapeHtml(g.nom)}<span class="chip">${g.categorie}${g.renomTotal?(' · R'+g.renomTotal):''}</span></span>
+          <button class="iconbtn remove" data-action="remove-don" data-idx="${i}">&times;</button>
+        </div>
+        <div class="item-meta">${escapeHtml(g.groupement||'—')} · Coût : ${escapeHtml(g.cout||'—')} · Action ${escapeHtml(g.action||'—')}</div>
+        <div class="item-effect">${escapeHtml(g.effet||'')}</div>
+      </div>`).join('')}
+  </div>
+
+  ${sectionHead('Rites connus', c.rites.length+' rite(s)')}
+  <div class="itemlist">
+    ${c.rites.length===0 ? '<div class="empty">Aucun rite appris pour l\'instant.</div>' : ''}
+    ${c.rites.map((r,i) => `
+      <div class="item">
+        <div class="item-top"><span class="item-name">${escapeHtml(r.nom)}</span><button class="iconbtn remove" data-action="remove-rite" data-idx="${i}">&times;</button></div>
+        <div class="item-meta">${escapeHtml(r.groupement||'—')}</div>
+        <div class="item-effect">${escapeHtml(r.effet||'')}</div>
+      </div>`).join('')}
+  </div>
+
+  ${sectionHead('Base des Dons', GIFTS.length+' entrées')}
+  <div class="card">
+    <div class="searchbar">
+      <select id="gift-cat-filter">
+        <option value="Tous">Toutes catégories</option>
+        ${GIFT_CATEGORIES.map(cat=>`<option value="${cat}" ${state.giftFilter.cat===cat?'selected':''}>${cat}</option>`).join('')}
+      </select>
+      <input type="text" id="gift-search" placeholder="Rechercher un don..." value="${escapeHtml(state.giftFilter.q)}">
+    </div>
+    <div style="max-height:420px; max-width:100%; overflow:auto;">
+      <table class="reftable">
+        <thead><tr><th>Nom</th><th>Catégorie</th><th>Renom</th><th>Groupement</th><th>Coût</th><th>Effet</th><th></th></tr></thead>
+        <tbody id="gift-rows">${renderDonsCatalogRows()}</tbody>
+      </table>
+    </div>
+  </div>
+
+  ${sectionHead('Base des Rites', RITES.length+' entrées')}
+  <div class="card">
+    <div class="searchbar"><input type="text" id="rite-search" placeholder="Rechercher un rite..." value="${escapeHtml(state.riteFilter.q)}"></div>
+    <div style="max-height:340px; max-width:100%; overflow:auto;">
+      <table class="reftable">
+        <thead><tr><th>Nom</th><th>Groupement</th><th>Effet</th><th></th></tr></thead>
+        <tbody id="rite-rows">${renderRitesCatalogRows()}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function renderFormes(c){
+  return `
+  ${sectionHead('Formes du Garou')}
+  ${FORMES.map(f => `
+    <div class="formcard">
+      <h4>${f.nom} <span style="font-size:12px; font-weight:400; color:var(--ink-soft);">— Coût : ${f.cout}</span></h4>
+      <ul>${f.details.map(d=>`<li>${d}</li>`).join('')}</ul>
+    </div>`).join('')}
+  <p class="helptext">${FORMES_NOTE}</p>`;
+}
+
+function renderNotes(c){
+  return `
+  ${sectionHead('Notes libres')}
+  <div class="card">
+    <textarea data-field="notes" rows="16" style="width:100%; border:1.5px solid var(--ink); padding:10px; border-radius:2px; background:var(--paper);">${escapeHtml(c.notes)}</textarea>
+  </div>`;
+}
+
+/* ---- Table (MJ) view ---- */
+function renderTableView(){
+  const codes = Object.keys(state.tableMembers);
+  return `
+  ${renderTopbar()}
+  <div class="main" style="padding:22px 26px;">
+    ${sectionHead('Table', state.tableCode)}
+    <div class="card">
+      <div class="row">
+        <input type="text" id="add-member-code" placeholder="Code du personnage à ajouter" style="text-transform:uppercase;">
+        <button class="btn small" data-action="add-member" style="flex:0 0 auto;">Ajouter à la table</button>
+      </div>
+    </div>
+    <div class="tablegrid">
+      ${codes.length===0 ? '<div class="empty">Aucun personnage sur cette table pour l\'instant.</div>' : ''}
+      ${codes.map(code => {
+        const m = state.tableMembers[code];
+        if (!m) return `<div class="charcard"><h4>${code}</h4><div class="sub">Personnage introuvable</div>
+          <button class="iconbtn remove" data-action="remove-member" data-code="${code}">&times;</button></div>`;
+        const sMax = santeMax(m), wMax = volonteMax(m);
+        const sDmg = (m.santeDegats||[]).filter(v=>v>0).length;
+        const wDmg = (m.volonteDegats||[]).filter(v=>v>0).length;
+        return `<div class="charcard" data-action="open-member" data-code="${code}">
+          <h4>${escapeHtml(m.nom||'(sans nom)')}</h4>
+          <div class="sub">${escapeHtml(m.auspice||'?')} · ${escapeHtml(m.tribu||'?')} — ${code}</div>
+          <div class="miniGauges">
+            <span>Santé ${sMax-sDmg}/${sMax}</span>
+            <span>Volonté ${wMax-wDmg}/${wMax}</span>
+            <span>Rage ${m.rage||0}/5</span>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
+/* ============ Event handling ============ */
+function updateCharField(path, value){
+  const c = state.character;
+  const parts = path.split('.');
+  let obj = c;
+  for (let i=0;i<parts.length-1;i++) obj = obj[parts[i]];
+  obj[parts[parts.length-1]] = value;
+  saveCharacterDebounced();
+}
+
+function attachLandingPanelHandlers(){
+  const panel = document.getElementById('landing-panel');
+  if (!panel) return;
+  panel.querySelectorAll('[data-action="new-character"]').forEach(b=>b.onclick=createCharacter);
+  panel.querySelectorAll('[data-action="load-character"]').forEach(b=>b.onclick=()=>{
+    loadCharacterByCode(document.getElementById('load-code-input').value);
+  });
+  panel.querySelectorAll('[data-action="open-table"]').forEach(b=>b.onclick=()=>{
+    openTable(document.getElementById('table-code-input').value);
+  });
+  const loadInp = document.getElementById('load-code-input');
+  if (loadInp) loadInp.addEventListener('keydown', e => { if (e.key==='Enter') loadCharacterByCode(loadInp.value); });
+  const tableInp = document.getElementById('table-code-input');
+  if (tableInp) tableInp.addEventListener('keydown', e => { if (e.key==='Enter') openTable(tableInp.value); });
+}
+
+function attachHandlers(){
+  attachLandingPanelHandlers();
+  const root = document.getElementById('app');
+
+  // Landing role pick
+  root.querySelectorAll('[data-action="pick-joueur"]').forEach(b=>b.onclick=()=>{
+    state.landingPanel = 'joueur'; state.loadError='';
+    renderApp();
+  });
+  root.querySelectorAll('[data-action="pick-mj"]').forEach(b=>b.onclick=()=>{
+    state.landingPanel = 'mj'; state.loadError='';
+    renderApp();
+  });
+  root.querySelectorAll('[data-action="go-home"]').forEach(b=>b.onclick=()=>{
+    if (state.unsubChar) state.unsubChar();
+    if (state.unsubTable) state.unsubTable();
+    Object.assign(state, { role:null, view:'landing', myCode:null, character:null, tableCode:null, tableMembers:{}, fromTable:false, landingPanel:null, loadError:'' });
+    renderApp();
+  });
+  root.querySelectorAll('[data-action="back-to-table"]').forEach(b=>b.onclick=()=>{
+    if (state.unsubChar) state.unsubChar();
+    state.view = 'table'; state.fromTable = false;
+    renderApp();
+  });
+
+  // Sidebar nav
+  root.querySelectorAll('[data-action="nav"]').forEach(b=>b.onclick=()=>{
+    state.section = b.dataset.section; renderApp();
+  });
+
+  // Text/select/textarea fields bound via data-field
+  root.querySelectorAll('[data-field]').forEach(inp=>{
+    const ev = (inp.tagName==='SELECT' || inp.type==='number') ? 'change' : 'input';
+    inp.addEventListener(ev, () => {
+      let v = inp.value;
+      if (inp.type==='number') v = Number(v)||0;
+      updateCharField(inp.dataset.field, v);
+    });
+  });
+
+  // Dots
+  root.querySelectorAll('[data-action="set-dot"]').forEach(b=>b.onclick=()=>{
+    const path = b.dataset.path; const val = Number(b.dataset.val);
+    const parts = path.split('.');
+    let obj = state.character;
+    for (let i=0;i<parts.length-1;i++) obj = obj[parts[i]];
+    const key = parts[parts.length-1];
+    const current = obj[key]||0;
+    obj[key] = (current===val) ? val-1 : val; // click same dot to reduce by one
+    saveCharacterDebounced();
+    renderApp();
+  });
+
+  // Boxes (health/willpower tri-state)
+  root.querySelectorAll('[data-action="cycle-box"]').forEach(b=>b.onclick=()=>{
+    const path = b.dataset.path; const idx = Number(b.dataset.idx);
+    const arr = state.character[path];
+    arr[idx] = ((arr[idx]||0)+1) % 3;
+    saveCharacterDebounced();
+    renderApp();
+  });
+
+  // Avantages
+  const avSel = document.getElementById('avantage-select');
+  root.querySelectorAll('[data-action="add-avantage-list"]').forEach(b=>b.onclick=()=>{
+    if (!avSel || avSel.value==='') return;
+    const options = [...ATOUTS.map(a=>({...a, kind:'Atout'})), ...HISTORIQUES.map(a=>({...a, kind:'Historique'}))];
+    const o = options[Number(avSel.value)];
+    state.character.avantages.push({ nom:o.nom, type:o.kind, valeur:1, note:'', effetRef:o.effet });
+    saveCharacterDebounced(); renderApp();
+  });
+  root.querySelectorAll('[data-action="add-avantage-custom"]').forEach(b=>b.onclick=()=>{
+    const nomInp = document.getElementById('avantage-custom-nom');
+    const valInp = document.getElementById('avantage-custom-val');
+    if (!nomInp.value.trim()) return;
+    state.character.avantages.push({ nom:nomInp.value.trim(), type:'Personnalisé', valeur:Number(valInp.value)||0, note:'' });
+    saveCharacterDebounced(); renderApp();
+  });
+  root.querySelectorAll('[data-action="remove-avantage"]').forEach(b=>b.onclick=()=>{
+    state.character.avantages.splice(Number(b.dataset.idx),1); saveCharacterDebounced(); renderApp();
+  });
+  root.querySelectorAll('[data-action="edit-avantage-val"]').forEach(inp=>inp.addEventListener('change',()=>{
+    state.character.avantages[Number(inp.dataset.idx)].valeur = Number(inp.value)||0; saveCharacterDebounced();
+  }));
+  root.querySelectorAll('[data-action="edit-avantage-note"]').forEach(inp=>inp.addEventListener('input',()=>{
+    state.character.avantages[Number(inp.dataset.idx)].note = inp.value; saveCharacterDebounced();
+  }));
+
+  // Dons/Rites catalog filters
+  const catSel = document.getElementById('gift-cat-filter');
+  if (catSel) catSel.onchange = () => { state.giftFilter.cat = catSel.value; document.getElementById('gift-rows').innerHTML = renderDonsCatalogRows(); attachCatalogRowHandlers(); };
+  const giftSearch = document.getElementById('gift-search');
+  if (giftSearch) giftSearch.oninput = () => { state.giftFilter.q = giftSearch.value; document.getElementById('gift-rows').innerHTML = renderDonsCatalogRows(); attachCatalogRowHandlers(); };
+  const riteSearch = document.getElementById('rite-search');
+  if (riteSearch) riteSearch.oninput = () => { state.riteFilter.q = riteSearch.value; document.getElementById('rite-rows').innerHTML = renderRitesCatalogRows(); attachCatalogRowHandlers(); };
+  attachCatalogRowHandlers();
+
+  // Table view
+  root.querySelectorAll('[data-action="add-member"]').forEach(b=>b.onclick=()=>{
+    const inp = document.getElementById('add-member-code');
+    if (inp.value.trim()) addMemberToTable(inp.value);
+    inp.value='';
+  });
+  root.querySelectorAll('[data-action="remove-member"]').forEach(b=>b.onclick=(e)=>{
+    e.stopPropagation(); removeMemberFromTable(b.dataset.code);
+  });
+  root.querySelectorAll('[data-action="open-member"]').forEach(b=>b.onclick=()=>{
+    openMemberSheet(b.dataset.code);
+  });
+}
+
+function attachCatalogRowHandlers(){
+  document.querySelectorAll('[data-action="add-don"]').forEach(b=>b.onclick=()=>{
+    const g = GIFTS[Number(b.dataset.idx)];
+    state.character.dons.push({ nom:g.nom, categorie:g.categorie, renomTotal:g.renomTotal, cout:g.cout, action:g.action, groupement:g.groupement, duree:g.duree, effet:g.effet });
+    saveCharacterDebounced(); renderApp();
+  });
+  document.querySelectorAll('[data-action="add-rite"]').forEach(b=>b.onclick=()=>{
+    const r = RITES[Number(b.dataset.idx)];
+    state.character.rites.push({ nom:r.nom, groupement:r.groupement, effet:r.effet });
+    saveCharacterDebounced(); renderApp();
+  });
+}
+
+document.addEventListener('click', function(e){
+  const t = e.target.closest('[data-action="remove-don"]');
+  if (t){ state.character.dons.splice(Number(t.dataset.idx),1); saveCharacterDebounced(); renderApp(); }
+  const t2 = e.target.closest('[data-action="remove-rite"]');
+  if (t2){ state.character.rites.splice(Number(t2.dataset.idx),1); saveCharacterDebounced(); renderApp(); }
+});
+
+renderApp();
+
+</script>
+</body>
+</html>
